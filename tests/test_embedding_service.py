@@ -104,8 +104,11 @@ def test_get_embedding_service_factory():
     assert svc.dimension == 768
 
 
-def test_gemini_embedding_service_requires_api_key():
+def test_gemini_embedding_service_requires_api_key(monkeypatch):
     """Verify Gemini service raises meaningful error when API key is missing."""
+    from src.config.settings import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
     with pytest.raises(EmbeddingError) as exc_info:
         GeminiEmbeddingService(api_key=None)
     assert "API key is not configured" in str(exc_info.value)

@@ -59,8 +59,11 @@ def test_llm_empty_prompt_raises():
         llm.generate("   \n\t  ")
 
 
-def test_gemini_service_requires_api_key():
+def test_gemini_service_requires_api_key(monkeypatch):
     """Verify GeminiService raises LLMError if initialized without API key."""
+    from src.config.settings import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", None)
     with pytest.raises(LLMError) as exc_info:
         GeminiService(api_key=None)
     assert "API key is not configured" in str(exc_info.value)

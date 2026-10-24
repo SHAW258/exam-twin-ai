@@ -30,11 +30,11 @@ class Settings(BaseSettings):
         description="Google Gemini API key for grounded answering, hints, and diagnosis."
     )
     GEMINI_MODEL: str = Field(
-        default="gemini-2.5-flash",
+        default="gemini-3.8-flash",
         description="Model name used for grounded reasoning, hints, and retest generation."
     )
     EMBEDDING_MODEL: str = Field(
-        default="text-embedding-004",
+        default="gemini-embedding-001",
         description="Model identifier for vector embedding generation."
     )
 

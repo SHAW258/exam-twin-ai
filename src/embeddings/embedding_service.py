@@ -148,7 +148,7 @@ class GeminiEmbeddingService(BaseEmbeddingService):
         dimension: int = 768,
     ):
         settings = get_settings()
-        self._api_key = api_key or (
+        self._api_key = api_key if api_key is not None else (
             settings.GEMINI_API_KEY.get_secret_value() if settings.GEMINI_API_KEY else None
         )
         self._model_name = model_name or settings.EMBEDDING_MODEL
@@ -191,10 +191,13 @@ class GeminiEmbeddingService(BaseEmbeddingService):
                 raise EmbeddingError(f"Text at index {idx} is empty or whitespace-only.")
 
         try:
+            from google.genai import types
+            config = types.EmbedContentConfig(output_dimensionality=self._dimension)
             # Batch embedding call via google.genai
             response = self._client.models.embed_content(
                 model=self._model_name,
                 contents=texts,
+                config=config,
             )
             embeddings = []
             for item in response.embeddings:

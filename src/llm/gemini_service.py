@@ -67,7 +67,7 @@ class GeminiService(BaseLLMService):
         model_name: Optional[str] = None,
     ):
         settings = get_settings()
-        self._api_key = api_key or (
+        self._api_key = api_key if api_key is not None else (
             settings.GEMINI_API_KEY.get_secret_value() if settings.GEMINI_API_KEY else None
         )
         self._model_name = model_name or settings.GEMINI_MODEL
