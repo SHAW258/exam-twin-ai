@@ -636,3 +636,61 @@ ExamTwin enforces strict tenant-like boundary separation between students to pre
    - Prior to exposing services over HTTP, an API gateway or middleware must authenticate incoming credentials, extract the verified subject, and pass it as `authenticated_student_id`.
 3. **Data Isolation Tests**:
    - Regression tests verify that Student A cannot read or modify Student B's Error DNA, assessment records, diagnosis history, or intervention recommendations.
+
+---
+
+## 9. Phase 8 — Retest & Learning Measurement Engine
+
+ExamTwin Phase 8 implements an empirical measurement engine to quantitatively evaluate whether a student's performance improves following a personalized adaptive learning intervention.
+
+### 9.1 Purpose & Objective
+
+The primary objective is to verify knowledge acquisition and misconception remediation through paired pre- and post-intervention assessments, producing defensible evidence of learning gain rather than relying solely on subjective chat interactions or unverified LLM evaluations.
+
+### 9.2 Assessment Lifecycle & Verified Evidence
+
+The engine defines a structured assessment lifecycle:
+- **Pre-Intervention Assessment**: Administered before targeted instruction to capture the baseline performance state.
+- **Post-Intervention Assessment**: Administered following the adaptive intervention to evaluate knowledge gains.
+- **Evidence Verification**: The system strictly distinguishes verified assessment evidence (actual student work and ground-truth evaluation) from model-generated answers, classifier predictions, and confidence scores. Unverified submissions cannot be reported as verified learning outcomes (`UnverifiedEvidenceError`).
+
+### 9.3 Score Normalization & Normalized Learning Gain Formula
+
+#### Score Normalization
+Raw assessment scores on differing scales (e.g., 10-point quiz vs. 50-point exam) are normalized to the continuous interval $[0.0, 1.0]$:
+$$\text{normalized\_score} = \frac{\text{obtained\_score}}{\text{max\_score}}$$
+Strict validation rejects negative scores, zero or negative maximum scores, and scores exceeding the maximum limit.
+
+#### Normalized Learning Gain ($g$)
+Normalized learning gain measures the proportion of potential improvement that was achieved:
+$$g = \frac{\text{post\_normalized\_score} - \text{pre\_normalized\_score}}{1 - \text{pre\_normalized\_score}}$$
+
+The engine handles all outcomes explicitly:
+- **Positive Gain ($g > 0$)**: Performance improved post-intervention (`GainClassification.POSITIVE`).
+- **Zero Gain ($g == 0.0$)**: Scores remained equivalent (`GainClassification.ZERO`).
+- **Negative Gain ($g < 0$)**: Performance declined post-intervention (`GainClassification.NEGATIVE`).
+- **Perfect Pre-Test (Ceiling Effect)**: When $\text{pre\_normalized\_score} == 1.0$, the denominator is zero. The engine avoids division by zero, assigns `normalized_gain = None`, and reports `GainClassification.PERFECT_PRETEST`.
+
+### 9.4 Assessment Comparability Requirements
+
+To guarantee scientific and pedagogical validity, paired assessments must satisfy strict comparability constraints:
+1. **Student Match**: Both assessments must belong to the exact same student (`IncompatibleAssessmentError`).
+2. **Topic Match**: Both assessments must evaluate the exact same topic (`IncompatibleAssessmentError`).
+3. **Learning Objective Match**: Both assessments must share the same `learning_objective_id` (`IncompatibleAssessmentError`).
+4. **Chronological Validity**: Post-assessment timestamps cannot precede pre-assessment timestamps (`AssessmentValidationError`).
+5. **Distinct Records**: Pre- and post-test cannot refer to the exact same assessment record (`AssessmentValidationError`).
+
+### 9.5 Integration with Adaptive Interventions & Learner State
+
+- **Intervention Linkage**: Assessments and measurement records preserve optional references to the `intervention_id` recommended by Phase 7.
+- **Mastery State Updates**: Upon completing a verified post-intervention assessment, `TopicMasteryState` in Phase 6 is updated with the verified assessment outcome. Mastery is **never** updated merely because a recommendation was generated or a classifier predicted an error.
+
+### 9.6 Security & Authorization Safeguards
+
+- Enforces `enforce_student_authorization(student_id, authenticated_student_id)` across all assessment ingestion and measurement endpoints.
+- Prevents cross-learner IDOR attempts and provides complete tenant-like isolation between student assessment histories.
+
+### 9.7 Academic Limitations & Disclaimers
+
+1. **Indicator vs. Causal Proof**: Normalized gain is an empirical measurement indicator, not definitive proof that the intervention alone caused the observed performance shift (external factors, practice effects, and retest familiarity may contribute).
+2. **Comparability Scope**: Score normalization enables comparison across different scoring scales only when the underlying assessments are psychometrically and pedagogically aligned.
