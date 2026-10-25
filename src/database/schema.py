@@ -5,6 +5,8 @@ from sqlalchemy import Engine
 
 from src.database.connection import DatabaseManager, get_db_manager
 from src.database.models import Base
+# Import learner_state models to ensure they are registered on Base.metadata
+import src.learner_state.models  # noqa: F401
 
 
 def create_tables(target: Optional[Union[Engine, DatabaseManager]] = None) -> None:
