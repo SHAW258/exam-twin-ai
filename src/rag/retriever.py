@@ -108,13 +108,35 @@ class Retriever:
                 user_id=user_id,
                 document_ids=document_ids,
             )
+            # If search yielded low similarity (< 0.15) and fallback service exists,
+            # also search using offline vector (supports documents embedded offline during quota limits)
+            fallback_svc = getattr(self.embedding_service, "_fallback_service", None)
+            if (not raw_results or raw_results[0].similarity_score < 0.15) and fallback_svc:
+                try:
+                    offline_vec = fallback_svc.embed_text(question.strip())
+                    offline_results = self.vector_store.search(
+                        query_embedding=offline_vec,
+                        top_k=k,
+                        user_id=user_id,
+                        document_ids=document_ids,
+                    )
+                    best_offline = offline_results[0].similarity_score if offline_results else 0
+                    best_raw = raw_results[0].similarity_score if raw_results else 0
+                    if best_offline > best_raw:
+                        raw_results = offline_results
+                except Exception:
+                    pass
         except Exception as exc:
             raise RetrieverError(f"Vector search failed: {exc}") from exc
 
-        # Step 3: Filter by minimum similarity threshold and format structured context
+        # Step 3: Filter by minimum similarity threshold (adaptive if stored offline)
+        effective_threshold = threshold
+        if raw_results and raw_results[0].similarity_score >= 0.15 and not any(r.similarity_score >= threshold for r in raw_results):
+            effective_threshold = 0.15
+
         retrieved_chunks: List[RetrievedContextChunk] = []
         for res in raw_results:
-            if res.similarity_score < threshold:
+            if res.similarity_score < effective_threshold:
                 continue
 
             source_name = res.metadata.get("source") or f"{res.document_id}.pdf"

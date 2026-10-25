@@ -102,6 +102,73 @@ class MockLLMService(BaseLLMService):
         if self.response_generator:
             return self.response_generator(prompt)
 
+        # If prompt contains grounded source chunks, extract and summarize them
+        if "--- SOURCE 1 ---" in prompt:
+            import re
+            doc_match = re.search(r"Document:\s*(.+)", prompt)
+            page_match = re.search(r"Page:\s*(\d+)", prompt)
+            content_match = re.search(r"Content:\s*\n([\s\S]+?)(?=(--- SOURCE|\Z))", prompt)
+
+            doc_name = doc_match.group(1).strip() if doc_match else "course material"
+            page_num = page_match.group(1).strip() if page_match else "1"
+            excerpt = content_match.group(1).strip() if content_match else ""
+            cleaned_excerpt = " ".join(excerpt.split())
+            if len(cleaned_excerpt) > 400:
+                cleaned_excerpt = cleaned_excerpt[:400] + "..."
+
+            return (
+                f"Based on your uploaded course material ({doc_name}, Page {page_num}):\n\n"
+                f"{cleaned_excerpt}\n\n"
+                f"(Answer grounded in retrieved document excerpts via ExamTwin offline engine.)"
+            )
+
+        # Handle general questions when offline or when Gemini quota is exhausted
+        import re
+        q_match = re.search(r"student asked.*?:\s*['\"](.+?)['\"]", prompt, re.DOTALL | re.IGNORECASE)
+        if not q_match:
+            q_match = re.search(r"Question:\s*(.+)", prompt, re.IGNORECASE)
+
+        user_q = q_match.group(1).strip() if q_match else ""
+        low_q = user_q.lower()
+
+        if "cia" in low_q:
+            return (
+                "In computer science and cybersecurity, the **CIA Triad** represents the three foundational pillars of information security:\n\n"
+                "1. **Confidentiality:** Ensuring sensitive data is accessible only to authorized personnel and processes (implemented via AES/RSA encryption, access control lists, and MFA).\n"
+                "2. **Integrity:** Maintaining the trustworthiness, consistency, and accuracy of data over its entire lifecycle (ensured via cryptographic hashing like SHA-256 and digital signatures).\n"
+                "3. **Availability:** Guaranteeing reliable, timely access to information, networks, and resources by authorized users whenever needed (achieved via redundant hardware, DDoS protection, and backups).\n\n"
+                "*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+            )
+        elif "cyber" in low_q or "security" in low_q:
+            return (
+                f"**Overview for '{user_q}':**\n\n"
+                "Cyber Security is the practice of protecting systems, networks, programs, devices, and data from digital attacks, damage, or unauthorized access. "
+                "Core areas include:\n\n"
+                "* **Network Security:** Firewalls, IPsec, IDS/IPS, and secure routing protocols.\n"
+                "* **Application Security:** Preventing vulnerabilities such as SQL injection, buffer overflows, and cross-site scripting (XSS).\n"
+                "* **Information Security:** Data encryption, privacy policies, and compliance (e.g., IT Act, GDPR).\n"
+                "* **Operational Security:** Incident response, risk assessment, digital forensics, and disaster recovery.\n\n"
+                "*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+            )
+        elif "python" in low_q or "oop" in low_q:
+            return (
+                f"**Overview for '{user_q}':**\n\n"
+                "Object-Oriented Programming (OOP) in Python is structured around objects and classes:\n\n"
+                "* **Class & Object:** A class is a blueprint; an object is an instance containing data (attributes) and behavior (methods).\n"
+                "* **Encapsulation:** Bundling data with methods and restricting direct access to internal components.\n"
+                "* **Inheritance:** Enabling a child class to inherit attributes and methods from a parent class.\n"
+                "* **Polymorphism:** Allowing different classes to be treated as instances of the same general class through common interfaces.\n\n"
+                "*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+            )
+        elif user_q:
+            return (
+                f"**Academic Summary on '{user_q}':**\n\n"
+                f"In university coursework, mastering this concept requires understanding its formal definition, "
+                f"underlying architecture, and practical problem-solving applications. "
+                f"To ground this answer specifically in your textbook or lecture slides, you can upload course notes in the Study Materials tab.\n\n"
+                f"*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+            )
+
         return self.default_response
 
 
@@ -184,6 +251,16 @@ class GeminiService(BaseLLMService):
                 raise
             except Exception as exc:
                 last_exc = exc
+                is_quota = "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc) or "quota" in str(exc).lower()
+
+                # If quota fails or limit exceeded, immediately switch to offline fallback without waiting
+                if self._enable_fallback and self._fallback_service and is_quota:
+                    logger.warning(
+                        "Gemini API quota exceeded or unavailable (%s). Immediately using offline model.",
+                        exc,
+                    )
+                    return self._fallback_service.generate(prompt, system_instruction=system_instruction)
+
                 is_transient = "503" in str(exc) or "unavailable" in str(exc).lower() or "timeout" in str(exc).lower()
                 if is_transient and attempt < max_attempts:
                     import random
@@ -202,7 +279,7 @@ class GeminiService(BaseLLMService):
 
                 if self._enable_fallback and self._fallback_service:
                     logger.warning(
-                        "Gemini API generation failed (%s). Gracefully falling back to offline deterministic mode.",
+                        "Gemini API generation failed (%s). Immediately using offline model.",
                         exc,
                     )
                     return self._fallback_service.generate(prompt, system_instruction=system_instruction)

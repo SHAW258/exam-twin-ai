@@ -214,7 +214,15 @@ class GeminiEmbeddingService(BaseEmbeddingService):
         try:
             from google.genai import types
             config = types.EmbedContentConfig(output_dimensionality=self._dimension)
-            # Batch embedding call via google.genai
+
+            # If batch exceeds Google's 100-chunk limit, immediately use offline embedding
+            if len(texts) > 90 and self._enable_fallback and self._fallback_service:
+                logger.info(
+                    "Large batch of %d chunks detected. Immediately using offline embedding model to prevent quota failure.",
+                    len(texts),
+                )
+                return self._fallback_service.embed_texts(texts)
+
             response = self._client.models.embed_content(
                 model=self._model_name,
                 contents=texts,
@@ -228,11 +236,12 @@ class GeminiEmbeddingService(BaseEmbeddingService):
         except Exception as exc:
             if self._enable_fallback and self._fallback_service:
                 logger.warning(
-                    "Gemini API failed to embed content (%s). Gracefully falling back to deterministic offline embeddings.",
+                    "Gemini API failed or quota reached (%s). Immediately using offline model.",
                     exc,
                 )
                 return self._fallback_service.embed_texts(texts)
             raise EmbeddingError(f"Gemini API failed to embed content: {exc}") from exc
+
 
 
 def get_embedding_service(

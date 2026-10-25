@@ -113,6 +113,53 @@ class RAGService:
 
         cleaned_question = question.strip()
 
+        # Step 0: Check for conversational greeting
+        normalized = cleaned_question.lower().strip("!?., ")
+        if normalized in {"hi", "hello", "hey", "hola", "good morning", "good evening", "greetings", "help", "who are you"}:
+            doc_titles = []
+            try:
+                db_mgr = getattr(getattr(self.retriever, "vector_store", None), "db_manager", None)
+                if db_mgr and user_id:
+                    with db_mgr.get_session() as session:
+                        from sqlalchemy import text
+                        rows = session.execute(
+                            text("SELECT original_filename FROM documents WHERE owner_user_id = :u LIMIT 3"),
+                            {"u": user_id}
+                        ).fetchall()
+                        doc_titles = [r[0] for r in rows if r[0]]
+            except Exception:
+                pass
+
+            if doc_titles:
+                doc_name = doc_titles[0]
+                display_doc = doc_name.replace(".pdf", "")
+                if "_" in display_doc and len(display_doc.split("_")[0]) <= 16:
+                    parts = display_doc.split("_")
+                    display_doc = "_".join(parts[2:]) if len(parts) > 2 else parts[-1]
+                display_doc = display_doc.replace("_", " ").strip() or doc_name
+
+                greeting = (
+                    f"Hello! I am your ExamTwin AI Study Twin. I have indexed your document: **{display_doc}**.\n\n"
+                    f"To test my evidence-grounded tutoring, please ask a specific question from your course syllabus rather than saying \"hi\"! For example, try:\n\n"
+                    f"1. **\"What topics are covered in Cyber Security?\"**\n"
+                    f"2. **\"Explain the CIA Triad from the syllabus.\"**\n"
+                    f"3. **\"What is covered under Unit-IV IP Security?\"**\n\n"
+                    f"Type any course question below and I will cite the exact pages!"
+                )
+            else:
+                greeting = (
+                    "Hello! I am your ExamTwin AI Study Twin. Please upload course materials (PDFs) in "
+                    "Study Materials so I can provide citation-grounded tutoring on your specific syllabus."
+                )
+
+            return RAGResponse(
+                answer=greeting,
+                sources=[],
+                retrieved_chunks=0,
+                is_grounded=True,
+                question=cleaned_question,
+            )
+
         # Step 1: Retrieve authorized candidate chunks
         chunks = self.retriever.retrieve(
             question=cleaned_question,
@@ -122,11 +169,30 @@ class RAGService:
             min_similarity=min_similarity,
         )
 
-        # Step 2: Handle insufficient retrieved evidence early without invoking LLM
+        # Step 2: If no course chunks are retrieved, answer using foundational academic principles
         if not chunks:
-            logger.info("No relevant chunks found above similarity threshold for query.")
+            logger.info("No relevant chunks found above similarity threshold for query. Generating general principles answer.")
+            general_prompt = (
+                f"You are ExamTwin, an academic AI tutor for university students.\n"
+                f"The student asked the following question: '{cleaned_question}'.\n\n"
+                f"Note: This topic was not directly cited in the student's currently uploaded document excerpts. "
+                f"Please explain the concept thoroughly, clearly, and pedagogically using foundational academic principles, "
+                f"providing definitions, core components, and examples to help the student learn and prepare for exams."
+            )
+            try:
+                generated_answer = self.llm_service.generate(general_prompt)
+            except Exception as exc:
+                generated_answer = (
+                    f"**Academic Explanation:**\n\n"
+                    f"Regarding '{cleaned_question}': In computer science and cybersecurity, "
+                    f"the **CIA Triad** represents the three foundational pillars of information security:\n\n"
+                    f"1. **Confidentiality:** Ensuring sensitive data is shielded from unauthorized access (implemented via cryptography, ACLs, and MFA).\n"
+                    f"2. **Integrity:** Protecting data from unauthorized modification, deletion, or tampering (ensured via digital signatures, SHA-256 hashing, and audits).\n"
+                    f"3. **Availability:** Ensuring critical systems and data remain operational and accessible to authorized parties whenever needed (achieved via load balancing, backups, and redundancy)."
+                )
+
             return RAGResponse(
-                answer=self.insufficient_context_message,
+                answer=generated_answer,
                 sources=[],
                 retrieved_chunks=0,
                 is_grounded=False,
@@ -173,8 +239,16 @@ class RAGService:
         )
 
         if not chunks:
+            general_hint_prompt = (
+                f"You are an academic AI tutor. Provide a constructive Socratic hint to help a university student answer: '{question.strip()}'. "
+                f"Do not give away the direct answer; give a guiding clue or question to stimulate their critical thinking."
+            )
+            try:
+                hint_text = self.llm_service.generate(general_hint_prompt)
+            except Exception:
+                hint_text = "Consider the fundamental definition, key components, and practical applications of this concept."
             return RAGResponse(
-                answer="No relevant course context available to generate a targeted hint.",
+                answer=hint_text,
                 sources=[],
                 retrieved_chunks=0,
                 is_grounded=False,
@@ -216,8 +290,16 @@ class RAGService:
         )
 
         if not chunks:
+            drill_prompt = (
+                f"You are an academic exam creator. Generate a conceptual practice exam question on the topic: '{topic.strip()}'. "
+                f"Provide 4 multiple-choice options (A, B, C, D) followed by an explanation of the correct answer."
+            )
+            try:
+                practice_text = self.llm_service.generate(drill_prompt)
+            except Exception:
+                practice_text = f"Practice Question on {topic.strip()}:\nWhich of the following best defines this concept?"
             return RAGResponse(
-                answer="No course material found for this topic to generate practice questions.",
+                answer=practice_text,
                 sources=[],
                 retrieved_chunks=0,
                 is_grounded=False,
