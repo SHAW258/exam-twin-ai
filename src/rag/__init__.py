@@ -14,6 +14,7 @@ from src.rag.rag_service import (
     RAGResponse,
     RAGService,
     SourceCitation,
+    get_rag_service,
 )
 
 __all__ = [
@@ -29,4 +30,5 @@ __all__ = [
     "RAGResponse",
     "RAGService",
     "SourceCitation",
+    "get_rag_service",
 ]

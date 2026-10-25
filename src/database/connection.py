@@ -28,14 +28,18 @@ class DatabaseManager:
         """Lazy-initialize and return the SQLAlchemy engine."""
         if self._engine is None:
             connect_args = {}
+            engine_kwargs = {"pool_pre_ping": True}
             # For SQLite in-memory testing
             if self.database_url.startswith("sqlite"):
                 connect_args["check_same_thread"] = False
+                if ":memory:" in self.database_url:
+                    from sqlalchemy.pool import StaticPool
+                    engine_kwargs["poolclass"] = StaticPool
 
             self._engine = create_engine(
                 self.database_url,
-                pool_pre_ping=True,
                 connect_args=connect_args,
+                **engine_kwargs,
             )
         return self._engine
 

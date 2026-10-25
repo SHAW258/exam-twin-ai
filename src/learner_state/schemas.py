@@ -10,6 +10,9 @@ class StudentProfileSchema(BaseModel):
 
     id: str = Field(..., description="Internal unique primary key ID.")
     external_student_id: str = Field(..., description="Stable external student identifier.")
+    email: Optional[str] = Field(default=None, description="Student email address.")
+    full_name: Optional[str] = Field(default=None, description="Student display name.")
+    is_active: bool = Field(default=True, description="Account active status.")
     created_at: Optional[datetime] = Field(default=None)
     updated_at: Optional[datetime] = Field(default=None)
     total_diagnoses_count: int = Field(default=0, ge=0)

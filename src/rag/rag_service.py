@@ -238,3 +238,35 @@ class RAGService:
             is_grounded=True,
             question=topic,
         )
+
+
+def get_rag_service(
+    db_manager: Optional[Any] = None,
+    use_mock_llm: Optional[bool] = None,
+    use_mock_embedding: Optional[bool] = None,
+) -> RAGService:
+    """Factory creating a fully wired RAGService with database vector store and retriever."""
+    from src.database.connection import DatabaseManager, get_db_manager
+    from src.vector_store.mysql_vector_store import MySQLVectorStore
+    from src.embeddings.embedding_service import get_embedding_service
+    from src.rag.retriever import Retriever
+    from src.rag.prompt_builder import PromptBuilder
+    from src.llm.gemini_service import get_llm_service
+    from src.config.settings import get_settings
+
+    settings = get_settings()
+    mgr = db_manager or get_db_manager()
+
+    mock_emb = use_mock_embedding if use_mock_embedding is not None else (settings.GEMINI_API_KEY is None)
+    mock_llm = use_mock_llm if use_mock_llm is not None else (settings.GEMINI_API_KEY is None)
+
+    vector_store = MySQLVectorStore(db_manager=mgr)
+    embedding_service = get_embedding_service(use_mock=mock_emb)
+    retriever = Retriever(vector_store=vector_store, embedding_service=embedding_service)
+    llm_service = get_llm_service(use_mock=mock_llm)
+
+    return RAGService(
+        retriever=retriever,
+        llm_service=llm_service,
+        prompt_builder=PromptBuilder(),
+    )

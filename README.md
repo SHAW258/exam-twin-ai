@@ -694,3 +694,118 @@ To guarantee scientific and pedagogical validity, paired assessments must satisf
 
 1. **Indicator vs. Causal Proof**: Normalized gain is an empirical measurement indicator, not definitive proof that the intervention alone caused the observed performance shift (external factors, practice effects, and retest familiarity may contribute).
 2. **Comparability Scope**: Score normalization enables comparison across different scoring scales only when the underlying assessments are psychometrically and pedagogically aligned.
+
+---
+
+## 10. Phase 9 — FastAPI Service Layer & Web Authentication
+
+### 10.1 Web-First Product Architecture
+
+ExamTwin is built **Web-First**. The backend exposes a high-performance RESTful API via FastAPI, designed to serve a future modern React + TypeScript single-page web application.
+
+```text
+React + TypeScript Frontend (SPA)
+             │  (HTTP / JSON, Bearer JWT)
+             ▼
+     FastAPI Service Layer (/api/v1)
+    ┌───────────────────────────────────┐
+    │ CORS Middleware (Whitelisted)     │
+    │ Exception Handlers                │
+    │ HS256 JWT & scrypt Auth Dependency│
+    └─────────────────┬─────────────────┘
+                      │
+   ┌──────────────────┼───────────────────┐
+   ▼                  ▼                   ▼
+Auth / Users     AI Tutor & RAG     Learning & Assessments
+(scrypt, JWT)   (Gemini + Citations) (Diagnosis, DNA, Gains)
+   └──────────────────┬───────────────────┘
+                      │
+              SQLAlchemy ORM
+                      │
+               MySQL Database
+```
+
+### 10.2 Environment Configuration
+
+Create or update your `.env` file with the Phase 9 configuration parameters:
+
+```bash
+# Database Configuration (Production uses MySQL; tests isolate with SQLite)
+DATABASE_URL=mysql+pymysql://examtwin_user:examtwin_pass@localhost:3306/examtwin_db
+
+# Security & JWT Authentication
+JWT_SECRET_KEY=change-this-in-production-to-a-secure-random-32-byte-secret
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+# Web CORS Settings (comma-separated origins for React dev server)
+CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+
+# PDF Upload & Processing Limits
+PDF_MAX_UPLOAD_SIZE_BYTES=26214400  # 25 MB
+VALIDATE_PDF_SIGNATURE=True
+```
+
+### 10.3 Running the FastAPI Web Application
+
+Start the development server with live-reloading:
+
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Interactive documentation is automatically generated:
+- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **OpenAPI JSON**: [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json)
+
+### 10.4 Authentication & Security Architecture
+
+1. **Password Hashing**: Passwords are hashed using standard library **`scrypt`** (RFC 7914) with a unique 16-byte random salt and verified in constant time (`hmac.compare_digest`). No plaintext passwords are ever stored.
+2. **Signed JWT Bearer Tokens**: RFC 7519 compliant JSON Web Tokens signed with HMAC-SHA256 (`HS256`), containing issued-at (`iat`), expiration (`exp`), and subject (`sub`) claims.
+3. **Verified Principal Dependency**: The `get_current_student` dependency verifies signatures, checks expiration, and extracts the student identity strictly from the verified `sub` claim. Client-supplied student IDs are **never** trusted as proof of identity.
+4. **Cross-Student Tenant Isolation**: All student documents, diagnoses, error history, and assessment records enforce strict ownership boundaries (`HTTP 403 Forbidden` on unauthorized cross-student access).
+
+### 10.5 Core Web API Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `GET` | `/health` | Service health status and timestamp | No |
+| `POST` | `/api/v1/auth/register` | Student registration and initial JWT issuance | No |
+| `POST` | `/api/v1/auth/login` | Authenticate with username and password | No |
+| `GET` | `/api/v1/auth/me` | Current authenticated student profile | **Bearer JWT** |
+| `POST` | `/api/v1/documents/upload` | Upload PDF (validates size limit and magic bytes) | **Bearer JWT** |
+| `GET` | `/api/v1/documents` | List course-shared and owned documents | **Bearer JWT** |
+| `GET` | `/api/v1/documents/{document_id}` | Retrieve specific document details and page counts | **Bearer JWT** |
+| `POST` | `/api/v1/tutor/ask` | Grounded Q&A, Socratic hint, or practice question | **Bearer JWT** |
+| `POST` | `/api/v1/diagnosis` | Machine learning error diagnosis on student response | **Bearer JWT** |
+| `GET` | `/api/v1/learning/state` | Error DNA summary, top errors, and topic masteries | **Bearer JWT** |
+| `GET` | `/api/v1/learning/interventions` | Prioritized adaptive intervention recommendation | **Bearer JWT** |
+| `POST` | `/api/v1/assessments` | Record verified assessment attempt | **Bearer JWT** |
+| `GET` | `/api/v1/assessments` | List student assessment history | **Bearer JWT** |
+| `GET` | `/api/v1/assessments/{id}` | Retrieve single assessment record | **Bearer JWT** |
+| `GET` | `/api/v1/learning/measurements` | Compute and retrieve normalized learning gain | **Bearer JWT** |
+| `GET` | `/api/v1/learning/measurements/{id}`| Retrieve single learning measurement audit record | **Bearer JWT** |
+
+For complete request/response schemas, TypeScript interfaces, and error codes, refer to [`docs/api_contract.md`](docs/api_contract.md).
+
+### 10.6 Running Tests
+
+The test suite runs with `pytest`:
+
+```bash
+# Run complete test suite (226 tests)
+pytest tests/ -v
+
+# Run Phase 9 API and authentication tests specifically
+pytest tests/test_api_auth_and_endpoints.py -v
+```
+
+*Note on Database Engines Tested*:
+- **SQLite In-Memory (`sqlite:///:memory:`) with `StaticPool`**: Used for fast, fully isolated, concurrent automated tests (Phases 1–9) without requiring external service dependencies.
+- **MySQL Integration**: Production schema and migration compatibility tested against MySQL 8.0 via `MySQLVectorStore` and `DatabaseManager`.
+
+### 10.7 Limitations
+
+1. **PDF Processing Sandboxing**: Uploads are strictly validated for size ($\le 25\text{ MB}$) and magic bytes (`%PDF-`), but deep sandboxing (containerized parsing) is deferred to future cloud deployment.
+2. **In-Memory Token Revocation**: Current tokens expire based on the `exp` claim without a centralized distributed Redis blacklist. Logout on the frontend is handled by clearing the stored bearer token from client storage.

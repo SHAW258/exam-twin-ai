@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -126,6 +126,31 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO")
     API_HOST: str = Field(default="0.0.0.0")
     API_PORT: int = Field(default=8000)
+
+    # -------------------------------------------------------------------------
+    # Authentication & Security Settings (Phase 9)
+    # -------------------------------------------------------------------------
+    JWT_SECRET_KEY: str = Field(
+        default="exam_twin_secret_key_change_in_production_phase9_2026",
+        description="Cryptographic secret key for signing HS256 JWT access tokens.",
+    )
+    JWT_ALGORITHM: str = Field(
+        default="HS256",
+        description="JWT cryptographic signing algorithm (RFC 7519).",
+    )
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=60 * 24,  # 24 hours
+        description="JWT token validity duration in minutes.",
+    )
+    CORS_ORIGINS: List[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+        ],
+        description="Allowed origins for Cross-Origin Resource Sharing (React web frontend).",
+    )
 
     # -------------------------------------------------------------------------
     # Derived Data Directory Helpers

@@ -43,6 +43,29 @@ class Student(Base):
         index=True,
         doc="Stable external student identifier (e.g., student username or registration ID).",
     )
+    email = Column(
+        String(255),
+        unique=True,
+        nullable=True,
+        index=True,
+        doc="Student email address for notifications and account recovery.",
+    )
+    hashed_password = Column(
+        String(255),
+        nullable=True,
+        doc="Salted scrypt hash of the student password.",
+    )
+    full_name = Column(
+        String(255),
+        nullable=True,
+        doc="Student full display name.",
+    )
+    is_active = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+        doc="Account active flag.",
+    )
     created_at = Column(
         DateTime,
         nullable=False,
@@ -69,10 +92,13 @@ class Student(Base):
     )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert Student record to dictionary."""
+        """Convert Student record to dictionary. Note: password hash is never serialized."""
         return {
             "id": self.id,
             "external_student_id": self.external_student_id,
+            "email": self.email,
+            "full_name": self.full_name,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "total_diagnoses_count": len(self.error_history) if self.error_history else 0,
