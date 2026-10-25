@@ -28,7 +28,7 @@ class DocumentIngestionPipeline:
         chunk_overlap: int = 50,
     ):
         self.db_manager = db_manager or get_db_manager()
-        self.embedding_service = embedding_service or get_embedding_service(use_mock=True)
+        self.embedding_service = embedding_service or get_embedding_service()
         self.vector_store = vector_store or MySQLVectorStore(db_manager=self.db_manager)
         self.loader = PDFLoader(preserve_empty_pages=True)
         self.chunker = PageAwareChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)

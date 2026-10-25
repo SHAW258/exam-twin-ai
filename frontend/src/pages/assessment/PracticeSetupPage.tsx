@@ -1,27 +1,38 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Sparkles, Dna, BookOpen, Clock, Play, Layers, ShieldCheck } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Sparkles, Dna, BookOpen, Clock, Play, ShieldCheck, Upload } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { api } from '../../api/client'
+import type { DocumentListItem } from '../../types/api'
 
 export const PracticeSetupPage: React.FC = () => {
   const navigate = useNavigate()
 
-  const [topic, setTopic] = useState('Cardiovascular Hemodynamics & Poiseuille’s Law')
-  const [drillMode, setDrillMode] = useState<'adaptive' | 'error_dna' | 'mock'>('error_dna')
-  const [questionCount, setQuestionCount] = useState(10)
-  const [difficulty, setDifficulty] = useState('Hard (Adaptive 8.8/10)')
+  const [documents, setDocuments] = useState<DocumentListItem[]>([])
+  const [topic, setTopic] = useState('')
+  const [drillMode, setDrillMode] = useState<'adaptive' | 'error_dna' | 'mock'>('adaptive')
+  const [questionCount, setQuestionCount] = useState(5)
+  const [difficulty, setDifficulty] = useState('Adaptive')
 
-  const topics = [
-    'Cardiovascular Hemodynamics & Poiseuille’s Law',
-    'Renal Acid-Base Clearance & Countercurrent Exchange',
-    'Enzyme Kinetics & Michaelis-Menten Steady State',
-    'Thermodynamics & Gibbs Free Energy Coupling',
-    'Neurotransmission & Action Potential Electrophysiology',
-  ]
+  useEffect(() => {
+    api.documents.list().then((docs) => {
+      setDocuments(docs)
+      if (docs.length > 0 && !topic) {
+        setTopic(docs[0].title.replace(/\.pdf$/i, ''))
+      }
+    }).catch(() => {})
+  }, [])
 
   const handleStart = () => {
-    navigate('/quiz')
+    const selectedTopic = topic.trim() || (documents.length > 0 ? documents[0].title.replace(/\.pdf$/i, '') : 'General Study')
+    navigate('/quiz', {
+      state: {
+        topic: selectedTopic,
+        drillMode,
+        questionCount,
+      },
+    })
   }
 
   return (
@@ -55,7 +66,7 @@ export const PracticeSetupPage: React.FC = () => {
                 <Dna className="w-4 h-4 text-rose-600" />
                 Error DNA Sprint
               </div>
-              <p className="text-[11px] text-slate-500">Targets active misconceptions and recurring trap answers.</p>
+              <p className="text-[11px] text-slate-500">Targets active misconceptions and recurring reasoning traps.</p>
             </div>
 
             <div
@@ -70,7 +81,7 @@ export const PracticeSetupPage: React.FC = () => {
                 <Sparkles className="w-4 h-4 text-indigo-600" />
                 Adaptive Retrieval
               </div>
-              <p className="text-[11px] text-slate-500">Dynamic difficulty scaling based on real-time performance.</p>
+              <p className="text-[11px] text-slate-500">Dynamic scaling based on your topic proficiency.</p>
             </div>
 
             <div
@@ -85,7 +96,7 @@ export const PracticeSetupPage: React.FC = () => {
                 <Clock className="w-4 h-4 text-indigo-600" />
                 Timed Simulation
               </div>
-              <p className="text-[11px] text-slate-500">Exam-condition countdown with strict timing constraints.</p>
+              <p className="text-[11px] text-slate-500">Timed session for realistic exam preparation.</p>
             </div>
           </div>
         </div>
@@ -93,19 +104,43 @@ export const PracticeSetupPage: React.FC = () => {
         {/* Topic Selector */}
         <div className="space-y-2">
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Target Curricular Topic
+            Target Curricular Topic or Study Document
           </label>
-          <select
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {topics.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          {documents.length > 0 ? (
+            <div className="space-y-2">
+              <select
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {documents.map((d) => (
+                  <option key={d.id} value={d.title.replace(/\.pdf$/i, '')}>
+                    {d.title} ({d.chunks_count} chunks)
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Or type a specific subtopic..."
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Enter topic name (e.g. Data Structures & Algorithms, Renal Clearance)..."
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5">
+                <span>Tip: Upload your course syllabus or notes in <Link to="/materials" className="underline font-bold">Study Materials</Link> to enable grounded questions with page citations.</span>
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Question Count & Difficulty */}
@@ -115,7 +150,7 @@ export const PracticeSetupPage: React.FC = () => {
               Question Count
             </label>
             <div className="flex gap-2">
-              {[5, 10, 20].map((count) => (
+              {[3, 5, 10].map((count) => (
                 <button
                   key={count}
                   type="button"
@@ -136,20 +171,25 @@ export const PracticeSetupPage: React.FC = () => {
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
               Difficulty Baseline
             </label>
-            <input
-              type="text"
-              readOnly
+            <select
               value={difficulty}
-              className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700"
-            />
+              onChange={(e) => setDifficulty(e.target.value)}
+              className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="Foundational">Foundational Concept Check</option>
+              <option value="Adaptive">Adaptive (Scales to Performance)</option>
+              <option value="Challenging">Challenging / Board Exam Level</option>
+            </select>
           </div>
         </div>
 
         {/* Start Button */}
-        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs text-emerald-700">
+        <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-slate-600">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>100% Grounded in Guyton & Hall Physiology</span>
+            <span>
+              {documents.length > 0 ? `${documents.length} Grounded course document(s) active` : 'Ungrounded practice session'}
+            </span>
           </div>
 
           <Button

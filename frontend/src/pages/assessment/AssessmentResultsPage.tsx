@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { CheckCircle2, TrendingUp, Dna, ArrowRight, RotateCcw, BookOpen, ShieldCheck } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { GainBadge } from '../../components/ui/Badge'
 
 export const AssessmentResultsPage: React.FC = () => {
   const location = useLocation()
@@ -12,12 +11,34 @@ export const AssessmentResultsPage: React.FC = () => {
     score?: number
     total?: number
     correct?: number
+    diagnosedTrap?: string
+    studentAnswer?: string
   } | undefined
 
-  const topic = state?.topic || 'Cardiovascular Hemodynamics & Poiseuille’s Law'
-  const score = state?.score !== undefined ? Math.round(state.score) : 85
-  const correct = state?.correct !== undefined ? state.correct : 8
-  const total = state?.total !== undefined ? state.total : 10
+  const topic = state?.topic
+  const score = state?.score !== undefined ? Math.round(state.score) : null
+  const diagnosedTrap = state?.diagnosedTrap
+
+  if (!state || score === null) {
+    return (
+      <div className="max-w-2xl mx-auto my-12 text-center">
+        <Card className="p-8 bg-white border border-slate-200 rounded-2xl space-y-4">
+          <h2 className="text-lg font-bold text-slate-900">No Recent Assessment Result Found</h2>
+          <p className="text-xs text-slate-500">
+            You can take a new practice drill or review your logged assessment history.
+          </p>
+          <div className="pt-2 flex justify-center gap-3">
+            <Link to="/practice">
+              <Button variant="primary">Start Practice Drill</Button>
+            </Link>
+            <Link to="/assessments">
+              <Button variant="outline">View Assessment History</Button>
+            </Link>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 font-sans">
@@ -27,7 +48,7 @@ export const AssessmentResultsPage: React.FC = () => {
           Assessment Performance Summary
         </h1>
         <p className="mt-1 text-xs text-slate-600">
-          Cognitive evaluation scored against verified curriculum benchmarks.
+          Cognitive evaluation recorded to your persistent learner state in MySQL.
         </p>
       </div>
 
@@ -38,42 +59,31 @@ export const AssessmentResultsPage: React.FC = () => {
 
         <div className="space-y-2">
           <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
-            Drill Complete • Verified Grading
+            Drill Complete • Logged to Database
           </span>
           <h2 className="text-3xl sm:text-4xl font-black text-slate-900">{score}% Score</h2>
           <p className="text-sm font-semibold text-slate-700">{topic}</p>
-          <p className="text-xs text-slate-500">
-            You answered {correct} out of {total} questions correctly.
-          </p>
         </div>
 
-        {/* 3 Metric Pills */}
-        <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto pt-2">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Normalized Gain</span>
-            <span className="text-base font-extrabold text-emerald-600">+48.2%</span>
+        {diagnosedTrap && (
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-left space-y-1 max-w-lg mx-auto">
+            <div className="flex items-center gap-1.5 font-bold text-rose-900">
+              <Dna className="w-4 h-4 text-rose-600" />
+              <span>Cognitive Trap Diagnosed by ML Classifier:</span>
+            </div>
+            <p className="text-rose-700">{diagnosedTrap}</p>
           </div>
-
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Error Remediated</span>
-            <span className="text-base font-extrabold text-indigo-600">-32% Gap</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Cosine Grounding</span>
-            <span className="text-base font-extrabold text-slate-800">0.961</span>
-          </div>
-        </div>
+        )}
 
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-slate-100">
-          <Link to="/assessments/review">
+          <Link to="/assessments">
             <Button
               variant="primary"
               className="bg-indigo-600 hover:bg-indigo-700 text-xs py-2.5 px-5 font-semibold shadow-md shadow-indigo-200"
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Review Answers & Citations
+              View Assessment History
             </Button>
           </Link>
           <Link to="/practice">

@@ -222,6 +222,13 @@ export const api = {
         body: JSON.stringify(payload),
       }),
 
+    list: (topic?: string): Promise<AssessmentResponse[]> => {
+      const url = topic
+        ? `/api/v1/assessments?topic=${encodeURIComponent(topic)}`
+        : '/api/v1/assessments'
+      return request<AssessmentResponse[]>(url)
+    },
+
     getById: (id: string): Promise<AssessmentResponse> =>
       request<AssessmentResponse>(`/api/v1/assessments/${encodeURIComponent(id)}`),
   },

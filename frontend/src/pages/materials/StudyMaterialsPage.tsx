@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   BookOpen,
   Upload,
@@ -7,18 +8,16 @@ import {
   CheckCircle2,
   RefreshCw,
   Layers,
-  Database,
-  ExternalLink,
-  ShieldCheck,
-  Zap,
-  Clock,
+  Bot,
   AlertCircle,
   FileCheck,
+  Calendar,
+  Lock,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
-import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
+import { LoadingSpinner, EmptyState } from '../../components/ui/LoadingAndEmpty'
 import { api } from '../../api/client'
 import type { DocumentListItem } from '../../types/api'
 
@@ -30,7 +29,6 @@ export const StudyMaterialsPage: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [filterQuery, setFilterQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<'all' | 'high' | 'formulas'>('all')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -39,8 +37,10 @@ export const StudyMaterialsPage: React.FC = () => {
     try {
       const docs = await api.documents.list()
       setDocuments(docs)
-      if (docs.length > 0 && !selectedDocId) {
+      if (docs.length > 0 && (!selectedDocId || !docs.some((d) => d.id === selectedDocId))) {
         setSelectedDocId(docs[0].id)
+      } else if (docs.length === 0) {
+        setSelectedDocId(null)
       }
     } catch (err) {
       console.warn('Failed to load documents:', err)
@@ -58,7 +58,7 @@ export const StudyMaterialsPage: React.FC = () => {
     if (!file) return
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setUploadError('Only PDF documents are supported for textbook grounding.')
+      setUploadError('Only PDF documents are supported for textbook and lecture grounding.')
       return
     }
 
@@ -79,31 +79,30 @@ export const StudyMaterialsPage: React.FC = () => {
     }
   }
 
-  // Active Document or Figma Reference
-  const activeDoc = documents.find((d) => d.id === selectedDocId) || {
-    id: 'demo-doc-01',
-    title: 'Guyton and Hall Textbook of Medical Physiology (14th Ed.) - Chapter 28: Renal Circulation.pdf',
-    pages_count: 24,
-    chunks_count: 148,
-    access_level: 'COURSE_SHARED' as const,
-  }
+  const filteredDocs = documents.filter((d) =>
+    d.title.toLowerCase().includes(filterQuery.toLowerCase())
+  )
+
+  const activeDoc = documents.find((d) => d.id === selectedDocId) || null
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Top Header matching Figma */}
+      {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-slate-500 mb-1">ExamTwin / Student Suite / Study Materials / Ingestion & Vector Pipeline</div>
+          <div className="text-xs text-slate-500 mb-1">
+            ExamTwin / Student Suite / Study Materials / Ingestion & Vector Library
+          </div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Study Materials: Ingestion & Document Inspector
+              Study Materials Library
             </h1>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              • Live Engine
+              {documents.length} Document{documents.length === 1 ? '' : 's'}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-600 max-w-2xl">
-            Upload textbooks, syllabus PDFs, and lecture decks. Inspect vector chunking, OCR parsing, cosine grounding indexes, and token distributions.
+          <p className="mt-1 text-xs text-slate-600 max-w-2xl leading-relaxed">
+            Upload course syllabus PDFs, lecture slides, and textbook excerpts. ExamTwin extracts text, generates vector embeddings, and grounds your AI Study Twin strictly in your uploaded materials.
           </p>
         </div>
 
@@ -122,7 +121,7 @@ export const StudyMaterialsPage: React.FC = () => {
             className="bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 font-semibold text-xs py-2.5 px-4"
             leftIcon={<Upload className="w-4 h-4" />}
           >
-            + Upload Material
+            + Upload PDF Material
           </Button>
         </div>
       </div>
@@ -141,216 +140,172 @@ export const StudyMaterialsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Document Details Card (Figma Exact) */}
-      <Card className="p-6 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> 100% Vectorized & Grounded
-            </span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">Physiology</span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">Renal & Hemodynamics</span>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700">MCAT Section 2</span>
-          </div>
-
-          <button
-            onClick={loadDocuments}
-            className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Re-Index Chunks
-          </button>
+      {isLoading ? (
+        <div className="py-20 flex flex-col items-center justify-center space-y-4">
+          <LoadingSpinner size="lg" />
+          <p className="text-xs text-slate-500 font-medium">Loading uploaded materials...</p>
         </div>
-
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-            <FileText className="w-6 h-6" />
+      ) : documents.length === 0 ? (
+        <Card className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-4 max-w-2xl mx-auto my-8">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center mx-auto shadow-sm">
+            <BookOpen className="w-8 h-8" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-              {activeDoc.title}
-            </h2>
-            <p className="text-xs text-slate-500">
-              18.4 MB • {activeDoc.pages_count} Pages parsed • {activeDoc.chunks_count} Semantic Chunks • text-embedding-004 (768 dims)
+            <h2 className="text-lg font-bold text-slate-900">No Study Materials Uploaded Yet</h2>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+              Upload your syllabus or lecture PDF to extract text, generate vector embeddings, and ground your AI Tutor in your real course content.
             </p>
           </div>
-        </div>
-
-        {/* 4 Stats Cards matching Figma */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Vector Coverage</span>
-            <div className="text-xl font-black text-slate-900">{activeDoc.chunks_count} / {activeDoc.chunks_count} <span className="text-xs text-emerald-600 font-bold">100%</span></div>
+          <div className="pt-2">
+            <Button
+              variant="primary"
+              onClick={() => fileInputRef.current?.click()}
+              isLoading={isUploading}
+              leftIcon={<Upload className="w-4 h-4" />}
+            >
+              Upload Your First PDF
+            </Button>
           </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Avg. Grounding Cosine</span>
-            <div className="text-xl font-black text-slate-900">0.914 <span className="text-xs text-indigo-600 font-bold">High Fidelity</span></div>
-            <p className="text-[10px] text-slate-400">Validated against syllabus specs</p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Linked Quizzes</span>
-            <div className="text-xl font-black text-slate-900">2 Active <span className="text-xs text-slate-500 font-normal">42 Questions</span></div>
-            <p className="text-[10px] text-slate-400">Drill #14, Mini-Mock #6</p>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Estimated Tokens</span>
-            <div className="text-xl font-black text-slate-900">62,490 <span className="text-xs text-slate-500 font-normal">tokens</span></div>
-            <p className="text-[10px] text-slate-400">~422 tokens per semantic block</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Two Column Grid: Vector Chunks & Chunk Grounding Inspector */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Vector Chunks (5 cols) */}
-        <div className="lg:col-span-5 p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">
-              Vector Chunks <span className="text-xs font-normal text-slate-400">({activeDoc.chunks_count} indexed passages)</span>
-            </h3>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[11px] font-semibold">
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Documents List (5 cols) */}
+          <div className="lg:col-span-5 p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">
+                Your Documents ({documents.length})
+              </h3>
               <button
-                onClick={() => setActiveTab('all')}
-                className={`px-2 py-0.5 rounded ${activeTab === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'}`}
+                onClick={loadDocuments}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
+                title="Refresh document list"
               >
-                All
-              </button>
-              <button
-                onClick={() => setActiveTab('high')}
-                className={`px-2 py-0.5 rounded ${activeTab === 'high' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'}`}
-              >
-                High Grounding
-              </button>
-              <button
-                onClick={() => setActiveTab('formulas')}
-                className={`px-2 py-0.5 rounded ${activeTab === 'formulas' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'}`}
-              >
-                Formulas
+                <RefreshCw className="w-3.5 h-3.5" /> Refresh
               </button>
             </div>
-          </div>
 
-          {/* Search filter */}
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="glomerular filtration autoregulation..."
-              value={filterQuery}
-              onChange={(e) => setFilterQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* Chunks List */}
-          <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
-            <div className="p-3.5 rounded-xl border-2 border-indigo-600 bg-indigo-50/30 text-xs space-y-1.5 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-indigo-900">Chunk #42 • Page 342 • Sec 4.2</span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">0.96 Match</span>
-              </div>
-              <p className="text-slate-600 line-clamp-2">
-                "The myogenic mechanism functions essentially to protect the delicate glomerular capillaries from..."
-              </p>
-              <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1">
-                <span>Tokens: 384 • 4 citations</span>
-                <span className="font-bold text-indigo-600">Active Selection</span>
-              </div>
+            {/* Search filter */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search uploaded documents..."
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
             </div>
 
-            <div className="p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-xs space-y-1.5 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">Chunk #43 • Page 343 • Sec 4.3</span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">0.89 Match</span>
-              </div>
-              <p className="text-slate-500 line-clamp-2">
-                "Tubuloglomerular feedback relies critically on the macula densa cells sensing luminal NaCl delivery..."
-              </p>
-              <div className="text-[10px] text-slate-400">Tokens: 412 • 2 citations</div>
-            </div>
+            {/* Document Items List */}
+            <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
+              {filteredDocs.map((doc) => {
+                const isSelected = doc.id === selectedDocId
+                return (
+                  <div
+                    key={doc.id}
+                    onClick={() => setSelectedDocId(doc.id)}
+                    className={`p-3.5 rounded-xl border text-xs space-y-1.5 cursor-pointer transition-all ${
+                      isSelected
+                        ? 'border-2 border-indigo-600 bg-indigo-50/40 text-indigo-950 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white text-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        <span className="font-bold truncate">{doc.title}</span>
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
+                        Indexed
+                      </span>
+                    </div>
 
-            <div className="p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white text-xs space-y-1.5 cursor-pointer">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">Chunk #44 • Page 344 • Sec 4.4</span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">0.82 Match</span>
-              </div>
-              <p className="text-slate-500 line-clamp-2">
-                "Angiotensin II acts predominantly on the efferent arteriole under hypovolemic conditions, preserving GFR..."
-              </p>
-              <div className="text-[10px] text-slate-400">Tokens: 340 • 6 citations</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Chunk Grounding Inspector (7 cols) */}
-        <div className="lg:col-span-7 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <span className="text-xs font-bold text-indigo-600">#42 Chunk Grounding Inspector</span>
-              <p className="text-[11px] text-slate-400">Vector ID: vec_gnt_ch28_0x8F92A3</p>
-            </div>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
-              <button className="px-2.5 py-1 rounded bg-white text-slate-900 shadow-2xs">Bounding Box</button>
-              <button className="px-2.5 py-1 rounded text-slate-500 hover:text-slate-900">Raw JSON</button>
-            </div>
-          </div>
-
-          <div className="space-y-3 text-xs">
-            <div className="flex items-center justify-between text-slate-500">
-              <span>Source: Guyton & Hall, Page 342, Column B, Para 3</span>
-              <span className="text-emerald-600 font-bold">OCR Confidence: 99.8%</span>
-            </div>
-
-            {/* Quoted and highlighted textbook excerpt */}
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 leading-relaxed font-serif text-sm">
-              "Autoregulation of Renal Blood Flow and GFR. Feedback mechanisms intrinsic to the kidneys normally keep renal blood flow and GFR relatively constant, despite marked changes in arterial blood pressure. These mechanisms still function in perfusing <mark className="bg-emerald-200 text-emerald-950 px-1 rounded">kidneys isolated from nervous control. The primary function of renal autoregulation is to maintain a relatively constant GFR and to allow precise control of renal excretion of water and solutes.</mark> The myogenic mechanism refers to the inherent capability of blood vessels to constrict when arterial pressure increases, safeguarding the glomerulus."
-            </div>
-
-            {/* Technical metrics */}
-            <div className="grid grid-cols-4 gap-3 pt-2 text-center">
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 block uppercase">Cosine Vector</span>
-                <span className="font-extrabold text-slate-900">0.9614</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 block uppercase">Token Count</span>
-                <span className="font-extrabold text-slate-900">384 tok</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 block uppercase">Embedding Dims</span>
-                <span className="font-extrabold text-slate-900">768 float</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 block uppercase">Parser Engine</span>
-                <span className="font-extrabold text-slate-900">PyMuPDF-v3</span>
-              </div>
-            </div>
-
-            {/* Active AI Tutor Grounding Citations */}
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              <span className="text-xs font-bold text-slate-700 block">Active AI Tutor Grounding Citations (3)</span>
-              <div className="space-y-1.5">
-                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-semibold text-slate-800">Renal Hemodynamics Tutor Query</span>
-                    <p className="text-[11px] text-slate-500">"Explain why GFR remains stable between 80 to 180 mmHg MAP."</p>
+                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1">
+                      <span>{doc.pages_count} Pages • {doc.chunks_count} Chunks</span>
+                      <span className="capitalize">{doc.access_level.toLowerCase()}</span>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-slate-400">Invoked 12m ago</span>
-                </div>
-                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-semibold text-slate-800">Diagnostic Drill #14 - Question #7</span>
-                    <p className="text-[11px] text-slate-500">Grounding anchor for Option B explanation on Myogenic Vasoconstriction.</p>
-                  </div>
-                  <span className="text-[10px] text-indigo-600 font-semibold">MCAT Practice</span>
-                </div>
-              </div>
+                )
+              })}
             </div>
           </div>
+
+          {/* Right Column: Selected Document Inspector (7 cols) */}
+          <div className="lg:col-span-7 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-5">
+            {activeDoc ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Grounded in MySQL Vector Store
+                  </span>
+
+                  <Link to="/tutor">
+                    <Button size="sm" variant="outline" className="text-xs" leftIcon={<Bot className="w-3.5 h-3.5" />}>
+                      Ask Tutor About This Document
+                    </Button>
+                  </Link>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 overflow-hidden">
+                    <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug break-all">
+                      {activeDoc.title}
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      ID: <span className="font-mono">{activeDoc.id}</span>
+                      {activeDoc.created_at && ` • Uploaded ${new Date(activeDoc.created_at).toLocaleDateString()}`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4 Stats Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Pages Parsed</span>
+                    <div className="text-xl font-black text-slate-900">{activeDoc.pages_count}</div>
+                    <p className="text-[10px] text-slate-400">PDF pages processed</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Semantic Chunks</span>
+                    <div className="text-xl font-black text-slate-900">{activeDoc.chunks_count}</div>
+                    <p className="text-[10px] text-slate-400">Indexed for RAG</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Privacy Mode</span>
+                    <div className="text-xl font-black text-slate-900 capitalize">{activeDoc.access_level.toLowerCase()}</div>
+                    <p className="text-[10px] text-slate-400">Restricted to your account</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Embedding Model</span>
+                    <div className="text-xl font-black text-slate-900">768-dim</div>
+                    <p className="text-[10px] text-slate-400">Cosine index active</p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-slate-800">
+                    <FileCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Evidence-Grounded Tutoring Ready</span>
+                  </div>
+                  <p className="text-slate-600 leading-relaxed text-[11px]">
+                    This document is ingested, chunked, and embedded. When you ask conceptual questions in the AI Tutor or take diagnostic drills, the retrieval engine queries these semantic chunks and cites exact page numbers.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="py-12 text-center text-slate-400 text-xs">
+                Select a document from the left list to view details.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

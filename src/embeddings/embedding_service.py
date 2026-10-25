@@ -158,10 +158,12 @@ class GeminiEmbeddingService(BaseEmbeddingService):
         )
         self._model_name = model_name or settings.EMBEDDING_MODEL
         self._dimension = dimension
-        self._enable_fallback = enable_fallback
+        is_prod = settings.APP_ENV.lower() == "production"
+        # In production, mock fallback is strictly disabled to prevent silent degradation
+        self._enable_fallback = False if is_prod else enable_fallback
         self._fallback_service = fallback_service or (
             DeterministicMockEmbeddingService(dimension=self._dimension, model_name=f"fallback-{self._model_name}")
-            if enable_fallback else None
+            if self._enable_fallback else None
         )
 
         if not self._api_key:
@@ -171,10 +173,8 @@ class GeminiEmbeddingService(BaseEmbeddingService):
 
         try:
             from google import genai
-            from google.genai import types
             self._client = genai.Client(
                 api_key=self._api_key,
-                http_options=types.HttpOptions(timeout=10.0),
             )
         except Exception as exc:
             if self._enable_fallback and self._fallback_service:
@@ -236,7 +236,7 @@ class GeminiEmbeddingService(BaseEmbeddingService):
 
 
 def get_embedding_service(
-    use_mock: bool = False,
+    use_mock: Optional[bool] = None,
     api_key: Optional[str] = None,
     dimension: int = 768,
     model_name: Optional[str] = None,
@@ -244,7 +244,7 @@ def get_embedding_service(
     """Factory creating the appropriate embedding service.
 
     Args:
-        use_mock: Force the offline deterministic mock embedding service.
+        use_mock: Explicitly choose mock (True) or live (False). If None, defaults to live in production, or checks API key.
         api_key: Optional Gemini API key override.
         dimension: Vector dimensionality (default 768).
         model_name: Model identifier.
@@ -256,8 +256,23 @@ def get_embedding_service(
     configured_key = api_key or (
         settings.GEMINI_API_KEY.get_secret_value() if settings.GEMINI_API_KEY else None
     )
+    is_prod = settings.APP_ENV.lower() == "production"
 
-    if use_mock or not configured_key:
+    if is_prod:
+        if use_mock:
+            raise EmbeddingError("DeterministicMockEmbeddingService cannot be enabled in production environment.")
+        if not configured_key:
+            raise EmbeddingError("GEMINI_API_KEY is not configured. Production requires a valid live Gemini API key.")
+        return GeminiEmbeddingService(
+            api_key=configured_key,
+            model_name=model_name or settings.EMBEDDING_MODEL,
+            dimension=dimension,
+            enable_fallback=False,
+        )
+
+    # Non-production (development / test)
+    should_use_mock = use_mock if use_mock is not None else (not configured_key)
+    if should_use_mock:
         return DeterministicMockEmbeddingService(
             dimension=dimension,
             model_name=model_name or "mock-text-embedding-004",

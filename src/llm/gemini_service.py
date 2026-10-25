@@ -120,9 +120,11 @@ class GeminiService(BaseLLMService):
             settings.GEMINI_API_KEY.get_secret_value() if settings.GEMINI_API_KEY else None
         )
         self._model_name = model_name or settings.GEMINI_MODEL
-        self._enable_fallback = enable_fallback
+        is_prod = settings.APP_ENV.lower() == "production"
+        # In production, mock fallback is strictly disabled to prevent silent degradation
+        self._enable_fallback = False if is_prod else enable_fallback
         self._fallback_service = fallback_service or (
-            MockLLMService(model_name=self._model_name) if enable_fallback else None
+            MockLLMService(model_name=self._model_name) if self._enable_fallback else None
         )
 
         if not self._api_key:
@@ -132,10 +134,8 @@ class GeminiService(BaseLLMService):
 
         try:
             from google import genai
-            from google.genai import types
             self._client = genai.Client(
                 api_key=self._api_key,
-                http_options=types.HttpOptions(timeout=10.0),
             )
         except Exception as exc:
             if self._enable_fallback and self._fallback_service:
@@ -159,42 +159,63 @@ class GeminiService(BaseLLMService):
         if self._client is None and self._enable_fallback and self._fallback_service:
             return self._fallback_service.generate(prompt, system_instruction=system_instruction)
 
-        try:
-            config = {}
-            if system_instruction:
-                config["system_instruction"] = system_instruction
+        config = {}
+        if system_instruction:
+            config["system_instruction"] = system_instruction
 
-            response = self._client.models.generate_content(
-                model=self._model_name,
-                contents=prompt,
-                config=config if config else None,
-            )
+        max_attempts = 3
+        last_exc = None
 
-            text_result = getattr(response, "text", None)
-            if not text_result or not text_result.strip():
-                raise LLMEmptyResponseError("Gemini returned an empty text completion.")
-
-            return text_result.strip()
-
-        except LLMEmptyResponseError:
-            raise
-        except Exception as exc:
-            if self._enable_fallback and self._fallback_service:
-                logger.warning(
-                    "Gemini API generation failed (%s). Gracefully falling back to offline deterministic mode.",
-                    exc,
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = self._client.models.generate_content(
+                    model=self._model_name,
+                    contents=prompt,
+                    config=config if config else None,
                 )
-                return self._fallback_service.generate(prompt, system_instruction=system_instruction)
 
-            logger.error("Gemini API call failed for model %s: %s", self._model_name, exc)
-            raise LLMAPIError(f"Gemini API generation error: {exc}") from exc
+                text_result = getattr(response, "text", None)
+                if not text_result or not text_result.strip():
+                    raise LLMEmptyResponseError("Gemini returned an empty text completion.")
+
+                return text_result.strip()
+
+            except LLMEmptyResponseError:
+                raise
+            except Exception as exc:
+                last_exc = exc
+                is_transient = "503" in str(exc) or "unavailable" in str(exc).lower() or "timeout" in str(exc).lower()
+                if is_transient and attempt < max_attempts:
+                    import random
+                    import time
+                    sleep_time = (2 ** attempt) + random.uniform(0.1, 0.5)
+                    logger.warning(
+                        "Gemini API transient failure on model %s (attempt %d/%d): %s. Retrying in %.2fs...",
+                        self._model_name,
+                        attempt,
+                        max_attempts,
+                        exc,
+                        sleep_time,
+                    )
+                    time.sleep(sleep_time)
+                    continue
+
+                if self._enable_fallback and self._fallback_service:
+                    logger.warning(
+                        "Gemini API generation failed (%s). Gracefully falling back to offline deterministic mode.",
+                        exc,
+                    )
+                    return self._fallback_service.generate(prompt, system_instruction=system_instruction)
+
+                logger.error("Gemini API call failed for model %s after %d attempts: %s", self._model_name, attempt, exc)
+                raise LLMAPIError(f"Gemini API generation error: {exc}") from exc
 
 
 
 
 
 def get_llm_service(
-    use_mock: bool = False,
+    use_mock: Optional[bool] = None,
     api_key: Optional[str] = None,
     model_name: Optional[str] = None,
     mock_default_response: Optional[str] = None,
@@ -202,7 +223,7 @@ def get_llm_service(
     """Factory creating the appropriate LLM service implementation.
 
     Args:
-        use_mock: If True, returns MockLLMService.
+        use_mock: Explicitly choose mock (True) or live (False). If None, defaults to live in production, or checks API key.
         api_key: Optional API key override.
         model_name: Optional model name override.
         mock_default_response: Canned response if using mock.
@@ -214,8 +235,22 @@ def get_llm_service(
     configured_key = api_key or (
         settings.GEMINI_API_KEY.get_secret_value() if settings.GEMINI_API_KEY else None
     )
+    is_prod = settings.APP_ENV.lower() == "production"
 
-    if use_mock or not configured_key:
+    if is_prod:
+        if use_mock:
+            raise LLMError("MockLLMService cannot be enabled in production environment.")
+        if not configured_key:
+            raise LLMError("GEMINI_API_KEY is not configured. Production requires a valid live Gemini API key.")
+        return GeminiService(
+            api_key=configured_key,
+            model_name=model_name or settings.GEMINI_MODEL,
+            enable_fallback=False,
+        )
+
+    # Non-production (development / test)
+    should_use_mock = use_mock if use_mock is not None else (not configured_key)
+    if should_use_mock:
         return MockLLMService(
             model_name=model_name or settings.GEMINI_MODEL,
             default_response=mock_default_response,

@@ -161,13 +161,10 @@ def list_documents(
     current_student: Student = Depends(get_current_student),
     db_manager: DatabaseManager = Depends(get_db_manager),
 ) -> List[DocumentListItem]:
-    """Return catalog of documents owned by the student or marked COURSE_SHARED."""
+    """Return catalog of documents owned by the current student."""
     with db_manager.get_session() as session:
         stmt = select(Document).where(
-            or_(
-                Document.owner_user_id == current_student.external_student_id,
-                Document.access_level == AccessLevel.COURSE_SHARED.value,
-            )
+            Document.owner_user_id == current_student.external_student_id
         ).order_by(Document.created_at.desc())
 
         docs = session.execute(stmt).scalars().all()
@@ -203,11 +200,8 @@ def get_document_details(
                 detail=f"Document '{document_id}' not found.",
             )
 
-        # Enforce access boundary
-        if (
-            doc.owner_user_id != current_student.external_student_id
-            and doc.access_level != AccessLevel.COURSE_SHARED.value
-        ):
+        # Enforce access boundary - user can only view their own documents
+        if doc.owner_user_id != current_student.external_student_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: You do not have permission to view this document.",

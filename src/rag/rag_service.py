@@ -63,10 +63,10 @@ class RAGService:
             insufficient_context_message: Default fallback message when no evidence is found.
         """
         self.retriever = retriever
-        self.llm_service = llm_service or get_llm_service(use_mock=True)
+        self.llm_service = llm_service or get_llm_service()
         self.prompt_builder = prompt_builder or PromptBuilder()
         self.insufficient_context_message = insufficient_context_message or (
-            "I could not find relevant information in the available course documents to answer this question."
+            "I could not find relevant information in your uploaded course materials to answer this question. Please upload relevant course documents (PDFs) in Study Materials to enable citation-grounded answers."
         )
 
     def _extract_unique_citations(self, chunks: List[RetrievedContextChunk]) -> List[SourceCitation]:
@@ -256,14 +256,18 @@ def get_rag_service(
 
     settings = get_settings()
     mgr = db_manager or get_db_manager()
+    is_prod = settings.APP_ENV.lower() == "production"
 
-    mock_emb = use_mock_embedding if use_mock_embedding is not None else (settings.GEMINI_API_KEY is None)
-    mock_llm = use_mock_llm if use_mock_llm is not None else (settings.GEMINI_API_KEY is None)
+    if is_prod:
+        if use_mock_llm or use_mock_embedding:
+            raise RuntimeError("Mock services cannot be requested in production environment.")
+        if not settings.GEMINI_API_KEY:
+            raise RuntimeError("GEMINI_API_KEY is not configured in production. Live RAG operations require a valid API key.")
 
     vector_store = MySQLVectorStore(db_manager=mgr)
-    embedding_service = get_embedding_service(use_mock=mock_emb)
+    embedding_service = get_embedding_service(use_mock=use_mock_embedding)
     retriever = Retriever(vector_store=vector_store, embedding_service=embedding_service)
-    llm_service = get_llm_service(use_mock=mock_llm)
+    llm_service = get_llm_service(use_mock=use_mock_llm)
 
     return RAGService(
         retriever=retriever,

@@ -8,9 +8,7 @@ import {
   ShieldCheck,
   Maximize2,
   ExternalLink,
-  HelpCircle,
-  FileText,
-  RotateCcw,
+  Upload,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react'
@@ -35,7 +33,7 @@ export const AITutorWorkspacePage: React.FC = () => {
     {
       id: 'msg-init',
       sender: 'tutor',
-      text: "Hello! I am your ExamTwin AI Study Twin. Every answer I provide is strictly grounded in your uploaded course materials and lecture slides. What concept or problem can we explore today?",
+      text: 'Hello! I am your ExamTwin AI Study Twin. Every answer I provide is grounded in your uploaded course materials. Ask any question, request a Socratic hint, or practice with targeted drill questions.',
       grounded: true,
       citations: [],
       timestamp: 'Just now',
@@ -44,7 +42,7 @@ export const AITutorWorkspacePage: React.FC = () => {
 
   const [question, setQuestion] = useState('')
   const [mode, setMode] = useState<TutorMode>('qa')
-  const [topic, setTopic] = useState('Renal Physiology & Fluid Homeostasis')
+  const [topic, setTopic] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
   const [selectedCitation, setSelectedCitation] = useState<SourceCitation | null>(null)
@@ -73,7 +71,7 @@ export const AITutorWorkspacePage: React.FC = () => {
       const res: TutorAskResponse = await api.tutor.ask({
         question: userText,
         mode,
-        topic: topic || undefined,
+        topic: topic.trim() || undefined,
       })
 
       const tutorMsg: ChatMessage = {
@@ -107,16 +105,20 @@ export const AITutorWorkspacePage: React.FC = () => {
     <div className="h-[calc(100vh-7rem)] flex flex-col lg:flex-row gap-5 font-sans overflow-hidden">
       {/* Left / Main: Chat Stream (8 cols) */}
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        {/* Workspace Header matching Figma */}
+        {/* Workspace Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">{topic}</h2>
+              <h2 className="text-sm font-bold text-slate-900">
+                {topic.trim() || 'General Course Study'}
+              </h2>
               <p className="text-[11px] text-slate-500">
-                Grounding Engine Active • {documents.length || 8} Indexed Course PDFs
+                {documents.length > 0
+                  ? `Grounding Engine Active • ${documents.length} Indexed Course PDF${documents.length === 1 ? '' : 's'}`
+                  : 'No course materials uploaded yet'}
               </p>
             </div>
           </div>
@@ -159,6 +161,19 @@ export const AITutorWorkspacePage: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Warning Banner if No Documents */}
+        {documents.length === 0 && (
+          <div className="p-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs flex items-center justify-between px-5">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>No course documents uploaded. Upload your syllabus or notes to enable citation-grounded tutoring.</span>
+            </div>
+            <Link to="/materials" className="font-bold text-amber-900 hover:underline shrink-0">
+              Upload PDF &rarr;
+            </Link>
+          </div>
+        )}
 
         {/* Chat Message Scrollable Container */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FDFDFE]">
@@ -208,7 +223,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           {isLoading && (
             <div className="flex items-center gap-2 p-4 text-xs text-slate-500 italic">
               <LoadingSpinner size="sm" />
-              <span>Consulting verified course textbooks and synthesizing grounded proof...</span>
+              <span>Consulting verified course documents and synthesizing grounded proof...</span>
             </div>
           )}
         </div>
@@ -218,7 +233,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="Ask a conceptual question (e.g. explain efferent arteriolar resistance shift)..."
+              placeholder="Ask a conceptual question grounded in your course materials..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all placeholder:text-slate-400"
@@ -246,7 +261,7 @@ export const AITutorWorkspacePage: React.FC = () => {
             </h3>
           </div>
           <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-            0% Hallucination
+            Evidence Grounded
           </span>
         </div>
 
@@ -264,9 +279,11 @@ export const AITutorWorkspacePage: React.FC = () => {
               <div className="text-[11px] text-slate-500">
                 Vector Cosine Similarity: <strong>{Math.round(selectedCitation.similarity_score * 100)}%</strong>
               </div>
-              <div className="pt-2 text-slate-700 italic border-l-2 border-indigo-500 pl-3 leading-relaxed bg-white/70 p-2 rounded">
-                "{selectedCitation.snippet}"
-              </div>
+              {selectedCitation.snippet && (
+                <div className="pt-2 text-slate-700 italic border-l-2 border-indigo-500 pl-3 leading-relaxed bg-white/70 p-2 rounded">
+                  "{selectedCitation.snippet}"
+                </div>
+              )}
             </div>
 
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
@@ -275,7 +292,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                 Mathematically Bound Evidence
               </p>
               <p className="text-[11px] text-emerald-700">
-                This excerpt was extracted directly from the verified course PDF index in MySQL.
+                This excerpt was extracted directly from your verified course PDF index in MySQL.
               </p>
             </div>
           </div>
