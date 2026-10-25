@@ -8,11 +8,14 @@ from scratch.
 
 from abc import ABC, abstractmethod
 import hashlib
+import logging
 import math
 import re
 from typing import List, Optional
 
 from src.config.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingError(Exception):
@@ -139,13 +142,15 @@ class DeterministicMockEmbeddingService(BaseEmbeddingService):
 
 
 class GeminiEmbeddingService(BaseEmbeddingService):
-    """Google Gemini API embedding service utilizing pretrained text-embedding-004."""
+    """Google Gemini API embedding service utilizing pretrained text-embedding-004 with offline fallback."""
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         model_name: Optional[str] = None,
         dimension: int = 768,
+        enable_fallback: bool = True,
+        fallback_service: Optional[BaseEmbeddingService] = None,
     ):
         settings = get_settings()
         self._api_key = api_key if api_key is not None else (
@@ -153,6 +158,11 @@ class GeminiEmbeddingService(BaseEmbeddingService):
         )
         self._model_name = model_name or settings.EMBEDDING_MODEL
         self._dimension = dimension
+        self._enable_fallback = enable_fallback
+        self._fallback_service = fallback_service or (
+            DeterministicMockEmbeddingService(dimension=self._dimension, model_name=f"fallback-{self._model_name}")
+            if enable_fallback else None
+        )
 
         if not self._api_key:
             raise EmbeddingError(
@@ -161,9 +171,17 @@ class GeminiEmbeddingService(BaseEmbeddingService):
 
         try:
             from google import genai
-            self._client = genai.Client(api_key=self._api_key)
+            from google.genai import types
+            self._client = genai.Client(
+                api_key=self._api_key,
+                http_options=types.HttpOptions(timeout=10.0),
+            )
         except Exception as exc:
-            raise EmbeddingError(f"Failed to initialize Google GenAI Client: {exc}") from exc
+            if self._enable_fallback and self._fallback_service:
+                logger.warning("Failed to initialize Google GenAI Client: %s. Will fallback to offline mode.", exc)
+                self._client = None
+            else:
+                raise EmbeddingError(f"Failed to initialize Google GenAI Client: {exc}") from exc
 
     @property
     def dimension(self) -> int:
@@ -190,6 +208,9 @@ class GeminiEmbeddingService(BaseEmbeddingService):
             if not t or not t.strip():
                 raise EmbeddingError(f"Text at index {idx} is empty or whitespace-only.")
 
+        if self._client is None and self._enable_fallback and self._fallback_service:
+            return self._fallback_service.embed_texts(texts)
+
         try:
             from google.genai import types
             config = types.EmbedContentConfig(output_dimensionality=self._dimension)
@@ -205,6 +226,12 @@ class GeminiEmbeddingService(BaseEmbeddingService):
                 embeddings.append(_l2_normalize(values))
             return embeddings
         except Exception as exc:
+            if self._enable_fallback and self._fallback_service:
+                logger.warning(
+                    "Gemini API failed to embed content (%s). Gracefully falling back to deterministic offline embeddings.",
+                    exc,
+                )
+                return self._fallback_service.embed_texts(texts)
             raise EmbeddingError(f"Gemini API failed to embed content: {exc}") from exc
 
 

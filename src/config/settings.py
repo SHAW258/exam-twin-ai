@@ -59,6 +59,22 @@ class Settings(BaseSettings):
     ADAPTIVE_W3_RECURRENCE: float = Field(default=0.25, ge=0.0, le=1.0)
     ADAPTIVE_W4_DIFFICULTY: float = Field(default=0.15, ge=0.0, le=1.0)
     ADAPTIVE_W5_RECENT_SUCCESS: float = Field(default=0.15, ge=0.0, le=1.0)
+    ADAPTIVE_RECENCY_WINDOW_DAYS: int = Field(
+        default=30,
+        ge=1,
+        description="Time window in days for linear decay of topic error recency.",
+    )
+    ADAPTIVE_RECURRENCE_SATURATION: int = Field(
+        default=3,
+        ge=1,
+        description="Number of repeated identical error category occurrences to reach maximum recurrence score.",
+    )
+    ADAPTIVE_SUCCESS_WINDOW_DAYS: int = Field(
+        default=30,
+        ge=1,
+        description="Time window in days for recency scaling of verified topic successes.",
+    )
+
 
     # -------------------------------------------------------------------------
     # RAG Retrieval & Context Configuration
@@ -78,6 +94,16 @@ class Settings(BaseSettings):
         default=6000,
         ge=500,
         description="Maximum character budget allocated for retrieved context in prompt.",
+    )
+
+    # -------------------------------------------------------------------------
+    # Machine Learning Error Diagnosis Settings
+    # -------------------------------------------------------------------------
+    ML_MIN_CONFIDENCE: float = Field(
+        default=0.60,
+        ge=0.0,
+        le=1.0,
+        description="Minimum confidence threshold for asserting an error category prediction.",
     )
 
     # -------------------------------------------------------------------------
@@ -110,6 +136,11 @@ class Settings(BaseSettings):
     def error_diagnosis_dir(self) -> Path:
         """Directory containing diagnostic dataset splits."""
         return self.data_dir / "error_diagnosis"
+
+    @property
+    def artifacts_dir(self) -> Path:
+        """Directory for trained models and ML artifacts."""
+        return self.PROJECT_ROOT / "artifacts"
 
     model_config = SettingsConfigDict(
         env_file=".env",

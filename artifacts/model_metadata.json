@@ -1,0 +1,53 @@
+{
+  "model_version": "baseline_v1",
+  "model_type": "TF-IDF + LogisticRegression",
+  "created_at_utc": "2026-10-25T11:06:00.087998+00:00",
+  "academic_project": "ExamTwin AI (MCA)",
+  "features": {
+    "format_template": "Question: {q} | Expected: {e} | Student Answer: {s} | Context: {c}",
+    "ngram_range": [
+      1,
+      2
+    ],
+    "sublinear_tf": true,
+    "strip_accents": "unicode",
+    "lowercase": true
+  },
+  "hyperparameters": {
+    "C": 1.0,
+    "class_weight": "balanced",
+    "solver": "lbfgs",
+    "max_iter": 1000,
+    "random_state": 42
+  },
+  "classes": [
+    "CALCULATION_EXECUTION_ERROR",
+    "CONCEPTUAL_MISUNDERSTANDING",
+    "FORMULA_RULE_ERROR",
+    "PARTIAL_KNOWLEDGE",
+    "QUESTION_MISREADING",
+    "REASONING_LOGICAL_ERROR",
+    "RECALL_FAILURE"
+  ],
+  "dataset_split_sizes": {
+    "train": 35,
+    "validation": 14,
+    "test": 14
+  },
+  "training_metrics": {
+    "accuracy": 1.0,
+    "macro_f1": 1.0
+  },
+  "validation_metrics": {
+    "accuracy": 0.8571,
+    "macro_f1": 0.8524
+  },
+  "library_versions": {
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "pandas": "3.1.0",
+    "numpy": "2.5.4",
+    "python": "3.14.5"
+  },
+  "notes": "Baseline trained on synthetic development dataset. Evaluated strictly without data leakage. Probabilities are uncalibrated and require confidence thresholding."
+}

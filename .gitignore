@@ -44,3 +44,8 @@ data/processed/*
 
 # Logs
 *.log
+
+# ML Artifacts (ignore binary models, keep gitkeep and metadata)
+artifacts/*
+!artifacts/.gitkeep
+!artifacts/model_metadata.json
