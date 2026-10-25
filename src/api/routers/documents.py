@@ -93,7 +93,7 @@ async def upload_document(
     max_size = getattr(settings, "MAX_PDF_SIZE_BYTES", 25 * 1024 * 1024)
     if len(file_bytes) > max_size:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"File exceeds maximum allowed size of {max_size} bytes (25 MB).",
         )
 
@@ -132,7 +132,9 @@ async def upload_document(
             status="SUCCESS",
             message=f"Document '{safe_title}' successfully ingested and chunked.",
         )
-    except (PDFSizeLimitExceededError, InvalidPDFSignatureError, PDFEmptyFileError) as exc:
+    except PDFSizeLimitExceededError as exc:
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(exc))
+    except (InvalidPDFSignatureError, PDFEmptyFileError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except PDFLoadingError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"PDF parsing error: {exc}")

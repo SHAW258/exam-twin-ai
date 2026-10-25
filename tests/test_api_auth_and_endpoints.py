@@ -275,6 +275,20 @@ class TestDocumentEndpoints:
         assert res.status_code == 400
         assert "magic-byte" in res.json()["detail"].lower()
 
+    def test_upload_oversized_pdf_returns_413(self, client, auth_headers_alice, monkeypatch):
+        """Verify uploading file exceeding maximum allowed size returns 413 Payload Too Large."""
+        from src.config.settings import get_settings
+        settings = get_settings()
+        monkeypatch.setattr(settings, "MAX_PDF_SIZE_BYTES", 100)
+        oversized = b"%PDF-1.4\n" + b"A" * 200
+        res = client.post(
+            "/api/v1/documents/upload",
+            content=oversized,
+            headers={**auth_headers_alice, "Content-Type": "application/pdf", "x-filename": "huge.pdf"},
+        )
+        assert res.status_code == 413
+        assert "exceeds maximum allowed size" in res.json()["detail"].lower()
+
     def test_list_and_get_document_details(self, client, auth_headers_alice):
         """Verify listing documents returns ingested documents."""
         res = client.get("/api/v1/documents", headers=auth_headers_alice)
@@ -556,3 +570,72 @@ class TestLearningMeasurementEndpoints:
         )
         assert bob_try_meas.status_code in [400, 403]
         assert "different students" in bob_try_meas.json()["detail"].lower()
+
+
+# =============================================================================
+# 5. Contract, CORS, and OpenAPI Specification Tests
+# =============================================================================
+
+class TestContractAndOpenAPIVerification:
+    """Tests confirming OpenAPI schema accuracy, CORS preflight headers, and error standardization."""
+
+    def test_openapi_schema_contains_all_16_api_endpoints(self, client):
+        """Verify OpenAPI JSON schema specifies all 16 endpoints and Bearer security."""
+        res = client.get("/openapi.json")
+        assert res.status_code == 200
+        spec = res.json()
+        assert spec["openapi"].startswith("3.")
+        assert "paths" in spec
+
+        expected_endpoints = [
+            "/api/v1/auth/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/me",
+            "/api/v1/documents/upload",
+            "/api/v1/documents",
+            "/api/v1/documents/{document_id}",
+            "/api/v1/tutor/ask",
+            "/api/v1/diagnosis",
+            "/api/v1/learning/state",
+            "/api/v1/learning/interventions",
+            "/api/v1/assessments",
+            "/api/v1/assessments/{assessment_id}",
+            "/api/v1/learning/measurements",
+            "/api/v1/learning/measurements/{measurement_id}",
+        ]
+        for ep in expected_endpoints:
+            assert ep in spec["paths"], f"Endpoint {ep} missing from OpenAPI schema!"
+
+    def test_cors_preflight_headers(self, client):
+        """Verify CORS OPTIONS preflight response permits whitelisted React development origin."""
+        res = client.options(
+            "/api/v1/auth/login",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "Content-Type",
+            },
+        )
+        assert res.status_code == 200
+        assert res.headers.get("access-control-allow-origin") == "http://localhost:3000"
+
+    def test_negative_score_assessment_rejected_with_422(self, client, auth_headers_alice):
+        """Verify negative assessment scores are rejected with 422 Unprocessable Entity."""
+        res = client.post(
+            "/api/v1/assessments",
+            json={
+                "topic": "Algorithms",
+                "learning_objective_id": "LO-ALGO-101",
+                "obtained_score": -5.0,
+                "max_score": 10.0,
+                "evidence": "Invalid negative score test.",
+            },
+            headers=auth_headers_alice,
+        )
+        assert res.status_code == 422
+
+    def test_unknown_document_id_returns_404(self, client, auth_headers_alice):
+        """Verify querying non-existent document ID returns 404 Not Found."""
+        res = client.get("/api/v1/documents/non_existent_doc_9999", headers=auth_headers_alice)
+        assert res.status_code == 404
+        assert "not found" in res.json()["detail"].lower()

@@ -94,11 +94,17 @@ def create_app() -> FastAPI:
             content={"detail": str(exc), "error_type": "ValidationError"},
         )
 
+    @app.exception_handler(PDFSizeLimitExceededError)
+    async def pdf_size_limit_handler(request: Request, exc: Exception) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            content={"detail": str(exc), "error_type": "PayloadTooLarge"},
+        )
+
     @app.exception_handler(IncompatibleAssessmentError)
     @app.exception_handler(UnverifiedEvidenceError)
     @app.exception_handler(InvalidStudentIdentifierError)
     @app.exception_handler(PDFValidationError)
-    @app.exception_handler(PDFSizeLimitExceededError)
     @app.exception_handler(InvalidPDFSignatureError)
     @app.exception_handler(PDFEmptyFileError)
     async def bad_request_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -112,6 +118,17 @@ def create_app() -> FastAPI:
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={"detail": str(exc), "error_type": "UnprocessablePDF"},
+        )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.error("Unhandled internal server error on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "detail": "An internal server error occurred. Please contact system support.",
+                "error_type": "InternalServerError",
+            },
         )
 
     # -------------------------------------------------------------------------
