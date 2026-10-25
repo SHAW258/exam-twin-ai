@@ -14,9 +14,10 @@ pypdf>=5.1.0
 # GenAI & Embeddings
 google-genai>=2.0.0
 
-# Database & Storage (MySQL via SQLAlchemy)
+# Database & Storage (MySQL / PostgreSQL via SQLAlchemy)
 sqlalchemy>=2.0.0
 pymysql>=1.1.0
+psycopg2-binary>=2.9.9
 
 # API Service
 fastapi>=0.115.0

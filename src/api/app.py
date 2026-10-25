@@ -62,10 +62,22 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.on_event("startup")
+    def on_startup() -> None:
+        """Verify and initialize database tables on startup (Render/PostgreSQL compatibility)."""
+        try:
+            from src.database.connection import get_db_manager
+            from src.database.schema import create_tables
+            create_tables(get_db_manager())
+            logger.info("Database schema verified on startup.")
+        except Exception as exc:
+            logger.warning("Database schema check warning on startup: %s", exc)
 
     # -------------------------------------------------------------------------
     # Domain Exception Handlers (Mapping internal domain errors to HTTP codes)

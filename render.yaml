@@ -1,0 +1,26 @@
+databases:
+  - name: exam-twin-db
+    databaseName: exam_twin
+    user: exam_twin_user
+    plan: free
+
+services:
+  - type: web
+    name: exam-twin-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: exam-twin-db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: APP_ENV
+        value: production
+      - key: CORS_ORIGINS
+        value: "*"

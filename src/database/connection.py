@@ -29,15 +29,23 @@ class DatabaseManager:
         if self._engine is None:
             connect_args = {}
             engine_kwargs = {"pool_pre_ping": True}
+            target_url = self.database_url
+
+            # Normalize PostgreSQL URLs from Render / Supabase / Neon
+            if target_url.startswith("postgres://"):
+                target_url = target_url.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif target_url.startswith("postgresql://") and not target_url.startswith("postgresql+"):
+                target_url = target_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
             # For SQLite in-memory testing
-            if self.database_url.startswith("sqlite"):
+            if target_url.startswith("sqlite"):
                 connect_args["check_same_thread"] = False
-                if ":memory:" in self.database_url:
+                if ":memory:" in target_url:
                     from sqlalchemy.pool import StaticPool
                     engine_kwargs["poolclass"] = StaticPool
 
             self._engine = create_engine(
-                self.database_url,
+                target_url,
                 connect_args=connect_args,
                 **engine_kwargs,
             )
