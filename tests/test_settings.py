@@ -42,3 +42,13 @@ def test_get_settings_caching():
     s1 = get_settings()
     s2 = get_settings()
     assert s1 is s2
+
+
+def test_pdf_upload_security_settings():
+    """Verify PDF security defaults: 25 MB max size and signature validation enabled."""
+    settings = Settings()
+    assert settings.MAX_PDF_SIZE_BYTES == 25 * 1024 * 1024  # 25 MB
+    assert settings.VALIDATE_PDF_SIGNATURE is True
+    # The default declared model field must not contain root credentials
+    default_db_url = Settings.model_fields["DATABASE_URL"].default
+    assert "root" not in default_db_url.lower()

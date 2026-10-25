@@ -30,6 +30,7 @@ from src.learner_state.service import (
     LearnerStateError,
     StudentNotFoundError,
     InvalidStudentIdentifierError,
+    UnauthorizedStudentAccessError,
 )
 
 __all__ = [
@@ -56,4 +57,5 @@ __all__ = [
     "LearnerStateError",
     "StudentNotFoundError",
     "InvalidStudentIdentifierError",
+    "UnauthorizedStudentAccessError",
 ]

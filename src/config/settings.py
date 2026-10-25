@@ -42,12 +42,25 @@ class Settings(BaseSettings):
     # Database Configuration (MySQL / SQLAlchemy)
     # -------------------------------------------------------------------------
     DATABASE_URL: str = Field(
-        default="mysql+pymysql://root:password@localhost:3306/exam_twin",
-        description="Connection URI for MySQL via PyMySQL driver (or SQLite in tests)."
+        default="mysql+pymysql://exam_twin_user:exam_twin_pass@localhost:3306/exam_twin",
+        description="Connection URI for MySQL via PyMySQL driver using dedicated application user (or SQLite in tests).",
     )
     VECTOR_DIMENSION: int = Field(
         default=768,
         description="Embedding dimension (e.g. 768 for text-embedding-004)."
+    )
+
+    # -------------------------------------------------------------------------
+    # Document Ingestion & Upload Security
+    # -------------------------------------------------------------------------
+    MAX_PDF_SIZE_BYTES: int = Field(
+        default=25 * 1024 * 1024,
+        ge=1024,
+        description="Maximum allowed PDF file size in bytes (default 25 MB).",
+    )
+    VALIDATE_PDF_SIGNATURE: bool = Field(
+        default=True,
+        description="Whether to enforce magic byte (%PDF-) header verification before parsing.",
     )
 
     # -------------------------------------------------------------------------

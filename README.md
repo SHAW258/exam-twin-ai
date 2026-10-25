@@ -234,7 +234,15 @@ Grounded Answer + Verified Document & Page Citations
   - Explainable Error DNA summary derivation (recurrence, affected topics, temporal trends, revision heuristics)
   - Credential-weighted topic mastery scoring formula bounded in [0.0, 1.0]
   - Comprehensive automated unit tests (16 new tests, 122 total passed)
-- [ ] **Phase 7: Adaptive Intervention Engine**
+- [x] **Phase 7: Adaptive Intervention Engine**
+  - Explainable multi-factor topic prioritization (`src/adaptive_intervention/priority.py`)
+  - Normalized formula: `priority = w1*freq + w2*recency + w3*recurrence + w4*difficulty - w5*recent_success`
+  - Deterministic multi-tier tie-breaking and bounds enforcement in `[0.0, 1.0]`
+  - Pedagogical strategy selection mapping canonical `ErrorType` to targeted remedial activities (`src/adaptive_intervention/strategy_selector.py`)
+  - Domain service orchestrating topic ranking, strategy mapping, and Error DNA synthesis (`src/adaptive_intervention/service.py`)
+  - Safe cold-start handling and uncertain diagnosis review flagging (`CLARIFICATION_REQUIRED`)
+  - Resilient Phase 4 course-grounded RAG retrieval integration with citation preservation
+  - Comprehensive automated unit tests (23 new tests, 145 total passed)
 - [ ] **Phase 8: Retest & Learning Measurement**
 - [ ] **Phase 9: FastAPI Service Integration**
 
@@ -439,4 +447,192 @@ print(f"Temporal Trend: {dna.temporal_trend.trend}")
 - **Credential Protection**: No personal passwords or sensitive credentials stored.
 - **Production Note**: Application-level student identifiers do not replace JWT/OAuth session authorization in production deployments.
 
+---
 
+## 11. Phase 7 — Adaptive Intervention Engine
+
+### Purpose & Architecture
+Phase 7 introduces the **Adaptive Intervention Engine**, which closes the loop between diagnostic assessment (Phase 5), persistent learner state (Phase 6), and pedagogical remediation. Rather than treating all errors equally or recommending generic study tasks, the engine synthesizes empirical evidence to recommend the most suitable next learning activity.
+
+```text
+Persistent Learner State (Error DNA & Topic Mastery)
+                     ↓
+Topic Priority Scorer (Multi-Factor Explainable Scoring)
+                     ↓
+Deterministic Tie-Breaking & Ranking ([0.0, 1.0])
+                     ↓
+Strategy Selector (Canonical ErrorType -> Pedagogical Strategy)
+                     ↓
+Optional Grounded RAG Retrieval (Phase 4 Service + Citations)
+                     ↓
+Structured InterventionRecommendation Contract
+```
+
+### Topic Prioritization Formula & Components
+Topics are ranked using an explainable, configurable scoring formula implemented in [`src/adaptive_intervention/priority.py`](src/adaptive_intervention/priority.py):
+
+$$\text{priority\_score} = \max\left(0.0, \min\left(1.0, w_1 \cdot \text{norm\_freq} + w_2 \cdot \text{recency} + w_3 \cdot \text{recurrence} + w_4 \cdot \text{difficulty} - w_5 \cdot \text{recent\_success}\right)\right)$$
+
+| Component Score | Weight | Definition & Normalization Method |
+| :--- | :---: | :--- |
+| **`normalized_frequency`** | $w_1 = 0.25$ | Topic error count normalized relative to the student's highest topic error count: $\frac{E_{\text{topic}}}{\max_{t}(E_t)} \in [0.0, 1.0]$. |
+| **`recency_score`** | $w_2 = 0.20$ | Linear time decay over `ADAPTIVE_RECENCY_WINDOW_DAYS` (30 days): $1.0 - \frac{\Delta t}{30} \in [0.0, 1.0]$. Events $\ge 30$ days decay to $0.0$. |
+| **`recurrence_score`** | $w_3 = 0.25$ | Repeated identical error category occurrences: $0.0$ for $\le 1$ occurrence, scaling linearly to $1.0$ at `ADAPTIVE_RECURRENCE_SATURATION` (3 occurrences). |
+| **`difficulty_score`** | $w_4 = 0.15$ | Empirical error rate on verified assessment attempts: $\frac{\text{incorrect\_attempts}}{\text{attempts\_count}} \in [0.0, 1.0]$. Defaults to neutral $0.0$ when attempts $= 0$. |
+| **`recent_success_score`** | $w_5 = 0.15$ | Verified assessment success rate discounted by elapsed time: $\frac{\text{correct\_attempts}}{\text{attempts\_count}} \times \max\left(0, 1 - \frac{\Delta t}{30}\right)$. Lowers priority for recently mastered topics. |
+
+#### Deterministic Tie-Breaking
+When candidate topics share identical priority scores, tie-breaking follows a strict multi-tier hierarchy:
+1. Higher `priority_score` (descending)
+2. Higher `recurrence_score` (descending — urgent recurring misconceptions prioritized)
+3. Higher `recency_score` (descending — more recent difficulties prioritized)
+4. Higher `frequency_score` (descending)
+5. Lexicographical topic name (ascending alphabetical)
+
+### Canonical Pedagogical Strategy Mapping
+The engine deterministically maps dominant error categories to pedagogical intervention strategies in [`src/adaptive_intervention/strategy_selector.py`](src/adaptive_intervention/strategy_selector.py):
+
+| Canonical `ErrorType` | Recommended `InterventionStrategy` | Pedagogical Rationale |
+| :--- | :--- | :--- |
+| `CONCEPTUAL_MISUNDERSTANDING` | `CONCEPT_EXPLANATION` | Flawed mental model detected. Guided conceptual explanation followed by a worked example recommended. |
+| `RECALL_FAILURE` | `DEFINITION_RECALL` | Inability to retrieve terminology or definitions. Active recall drills and concise terminology review recommended. |
+| `FORMULA_RULE_ERROR` | `FORMULA_REVISION` | Incorrect theorem, formula, or syntax applied. Formula clarification followed by targeted application exercises recommended. |
+| `CALCULATION_EXECUTION_ERROR` | `CALCULATION_DRILL` | Procedural or arithmetic misstep. Step-by-step calculation practice and procedural audit recommended. |
+| `REASONING_LOGICAL_ERROR` | `STEP_BY_STEP_REASONING` | Deductive fallacy or invalid premise leap. Worked reasoning examples and step-by-step logical breakdown recommended. |
+| `QUESTION_MISREADING` | `QUESTION_INTERPRETATION` | Overlooked constraints or prompt misinterpretation. Prompt interpretation exercises and constraint checklists recommended. |
+| `PARTIAL_KNOWLEDGE` | `GUIDED_PRACTICE` | Incomplete but directionally accurate answer. Scaffolded practice with progressive assistance recommended. |
+
+#### Fallback Rules
+- **Tied Categories**: When multiple error categories occur with equal frequency, the selector returns `MIXED_REVIEW`.
+- **Zero / Unobserved Errors**: When a topic has no recorded diagnostic errors (e.g., cold start or strong performance), it returns `GUIDED_PRACTICE`.
+- **Uncertain Diagnoses**: When diagnostic evidence is below confidence threshold ($< 0.60$) or marked `needs_review=True`, the selector withholds specific category targeting and returns `CLARIFICATION_REQUIRED`.
+
+### Cold-Start & Uncertainty Handling
+- **Cold-Start Behavior**: If a student has no recorded diagnostic or assessment history, the service assigns `is_cold_start=True`, a baseline priority score of $0.0$, and recommends introductory `GUIDED_PRACTICE`. It explicitly avoids claiming that the student has any weaknesses.
+- **Uncertainty Protection**: Classifier predictions are never treated as verified assessment outcomes. Low-confidence predictions trigger `review_required=True` and `CLARIFICATION_REQUIRED`, preventing unwarranted educational interventions.
+
+### Course-Grounded RAG Integration
+When `include_grounded_content=True` is requested, [`AdaptiveInterventionService`](src/adaptive_intervention/service.py) queries the Phase 4 `RAGService` to retrieve relevant textbook/notes excerpts and citations:
+- Queries are aligned with the recommended strategy (e.g., conceptual explanations vs. practice problems).
+- Verified page citations (`SourceCitation`) are preserved in the response contract.
+- Non-blocking design: if the RAG service, vector store, or Gemini LLM is offline, the recommendation succeeds seamlessly with `grounded_content=None` and `grounded_citations=[]`.
+
+### Example Usage
+```python
+from src.adaptive_intervention import AdaptiveInterventionService
+from src.learner_state.service import LearnerStateService
+
+# Initialize service
+learner_service = LearnerStateService()
+adaptive_service = AdaptiveInterventionService(learner_state_service=learner_service)
+
+# Generate explainable recommendation
+rec = adaptive_service.recommend_intervention(
+    external_student_id="student_101",
+    include_grounded_content=False,
+)
+
+print(f"Prioritized Topic: {rec.selected_topic}")
+print(f"Priority Score: {rec.priority_score:.4f}")
+print(f"Recommended Strategy: {rec.selected_strategy.value}")
+print(f"Rationale: {rec.strategy_rationale}")
+print(f"Student Explanation: {rec.student_explanation}")
+```
+
+#### Example Structured Output Schema
+```json
+{
+  "student_id": "student_101",
+  "selected_topic": "Data Structures",
+  "priority_score": 0.7250,
+  "priority_breakdown": {
+    "frequency_score": 1.0,
+    "recency_score": 1.0,
+    "recurrence_score": 0.5,
+    "difficulty_score": 1.0,
+    "recent_success_score": 0.0,
+    "final_score": 0.7250,
+    "weights": {
+      "w1_frequency": 0.25,
+      "w2_recency": 0.20,
+      "w3_recurrence": 0.25,
+      "w4_difficulty": 0.15,
+      "w5_recent_success": 0.15
+    }
+  },
+  "selected_strategy": "CONCEPT_EXPLANATION",
+  "strategy_rationale": "Dominant error in 'Data Structures' is CONCEPTUAL_MISUNDERSTANDING (2 occurrences). Guided concept explanation followed by a worked example recommended.",
+  "student_explanation": "Topic 'Data Structures' has been prioritized (score: 0.72) due to 2 recorded diagnostic errors, high rate of incorrect assessment attempts. Recommended activity: Concept Explanation — Guided concept explanation followed by a worked example recommended.",
+  "is_uncertain": false,
+  "review_required": false,
+  "is_cold_start": false
+}
+```
+
+### Academic Limitations & Disclaimers
+1. **Pedagogical Heuristics**: The prioritization formula weights ($w_1 \dots w_5$) and strategy mappings represent pedagogical heuristics. They require formal empirical calibration on real student learning datasets before making claims about learning gains.
+2. **No Cognitive Claims**: The system measures recorded activity evidence, not internal intelligence, memory capacity, or cognitive aptitude.
+3. **Absence of Evidence**: An unpracticed topic does not imply student deficiency; it is treated neutrally.
+
+---
+
+## 8. Security Architecture & Hardening
+
+ExamTwin incorporates defense-in-depth security controls across document ingestion, persistence, and student identity boundaries.
+
+### 8.1 PDF Ingestion Security Controls
+
+To mitigate Denial of Service (DoS) and memory exhaustion vectors from malformed or maliciously crafted PDFs:
+1. **File Size Enforcement**: Evaluated before reading files into memory via filesystem `os.stat().st_size`. Files exceeding `MAX_PDF_SIZE_BYTES` (default: 25 MB) are rejected immediately with `PDFSizeLimitExceededError`.
+2. **Magic Byte Signature Inspection**: Evaluates the initial 5 bytes of the file for the standard PDF header signature (`b"%PDF-"`). Non-conforming or corrupted payloads raise `InvalidPDFSignatureError`.
+3. **Empty File Detection**: 0-byte files raise `PDFEmptyFileError` without triggering parser initialization.
+4. **Parsing Exception Handling**: Corrupted streams and syntax errors during `pypdf` extraction are caught safely, raising `PDFExtractionError` without leaking internal file paths or stack traces to end users.
+5. **Security Disclaimer**: Magic-byte signature verification confirms file format structure but does **not** guarantee an untrusted PDF is safe from parser vulnerabilities, embedded JavaScript, or font-parsing exploits. In high-risk production deployments, parsing should occur within isolated, unprivileged container sandboxes.
+
+### 8.2 MySQL Least Privilege & User Separation
+
+In production and multi-tenant environments, root database users must never be utilized by the application runtime. ExamTwin establishes strict separation of duties between DML application execution and DDL administrative schema migrations.
+
+#### 1. Runtime Application User (DML Only)
+The daily application runtime needs only Data Manipulation Language (DML) permissions to query and modify records:
+```sql
+-- Create dedicated application user
+CREATE USER 'exam_twin_app'@'localhost' IDENTIFIED BY 'STRONG_APP_PASSWORD_HERE';
+
+-- Grant minimum necessary DML privileges
+GRANT SELECT, INSERT, UPDATE, DELETE ON exam_twin.* TO 'exam_twin_app'@'localhost';
+
+-- Apply privileges
+FLUSH PRIVILEGES;
+```
+*Note*: `DROP`, `ALTER`, `CREATE`, and `GRANT` are explicitly withheld from the application runtime user.
+
+#### 2. Administrative Migration User (DDL Only)
+Schema creation and database migrations should be run under a separate administrative credential:
+```sql
+-- Create dedicated migration/admin user
+CREATE USER 'exam_twin_admin'@'localhost' IDENTIFIED BY 'STRONG_ADMIN_PASSWORD_HERE';
+
+-- Grant DDL privileges for schema migrations
+GRANT CREATE, ALTER, DROP, INDEX, REFERENCES ON exam_twin.* TO 'exam_twin_admin'@'localhost';
+
+-- Apply privileges
+FLUSH PRIVILEGES;
+```
+
+#### 3. Test Isolation
+The automated test suite runs strictly on isolated in-memory SQLite instances (`sqlite:///:memory:`) or dedicated ephemeral test databases. Tests **never** connect to a production MySQL database.
+
+### 8.3 Student Data Authorization Boundaries
+
+ExamTwin enforces strict tenant-like boundary separation between students to prevent Insecure Direct Object References (IDOR):
+
+1. **Trusted Principal vs. Request Identity**:
+   - Request-supplied student IDs (`external_student_id`) in request bodies or query parameters are considered **untrusted inputs**.
+   - When exposed over an HTTP API (Phase 9), the caller's identity MUST be derived from a verified authentication principal (e.g., cryptographic JWT `sub` claim or verified server session).
+   - If an authenticated principal is provided, `enforce_student_authorization` strictly rejects any request where `requested_student_id != authenticated_student_id` by raising `UnauthorizedStudentAccessError`.
+2. **Domain-Level Scoping vs. API Authentication**:
+   - Service-level student scoping (`WHERE student_id = :id`) provides repository data isolation, but it **does not** replace API authentication.
+   - Prior to exposing services over HTTP, an API gateway or middleware must authenticate incoming credentials, extract the verified subject, and pass it as `authenticated_student_id`.
+3. **Data Isolation Tests**:
+   - Regression tests verify that Student A cannot read or modify Student B's Error DNA, assessment records, diagnosis history, or intervention recommendations.

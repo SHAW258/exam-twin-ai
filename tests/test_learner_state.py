@@ -355,6 +355,10 @@ def test_error_dna_recurring_errors_and_affected_topics(learner_service):
     assert len(summary.most_affected_topics) == 2
     assert summary.most_affected_topics[0].topic == "Data Structures"
     assert summary.most_affected_topics[0].count == 3
+    assert summary.most_affected_topics[0].primary_error_category == "CONCEPTUAL_MISUNDERSTANDING"
+    assert summary.most_affected_topics[1].topic == "Algorithms"
+    assert summary.most_affected_topics[1].count == 1
+    assert summary.most_affected_topics[1].primary_error_category == "FORMULA_RULE_ERROR"
 
 
 def test_error_dna_student_isolation(learner_service):

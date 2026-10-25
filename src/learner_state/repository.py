@@ -62,6 +62,7 @@ class ErrorHistoryRepository:
         self,
         session: Session,
         student_id: str,
+        topic: Optional[str] = None,
         since: Optional[datetime] = None,
     ) -> List[Tuple[str, int]]:
         """Return counts of confirmed error categories (excluding null / review-required)."""
@@ -78,6 +79,8 @@ class ErrorHistoryRepository:
             .group_by(ErrorDiagnosisRecord.error_category)
             .order_by(desc("count"))
         )
+        if topic:
+            stmt = stmt.where(ErrorDiagnosisRecord.topic == topic)
         if since:
             stmt = stmt.where(ErrorDiagnosisRecord.created_at >= since)
         results = session.execute(stmt).all()

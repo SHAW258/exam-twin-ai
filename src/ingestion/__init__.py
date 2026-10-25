@@ -1,9 +1,14 @@
 """Document Ingestion, Cleaning, Chunking, and Storage Pipeline for ExamTwin."""
 
 from src.ingestion.pdf_loader import (
+    DEFAULT_MAX_PDF_SIZE_BYTES,
     ExtractedPage,
+    InvalidPDFSignatureError,
+    PDFEmptyFileError,
     PDFLoader,
     PDFLoadingError,
+    PDFSizeLimitExceededError,
+    PDFValidationError,
     load_pdf,
 )
 from src.ingestion.text_cleaner import (
@@ -23,9 +28,14 @@ from src.ingestion.pipeline import DocumentIngestionPipeline
 
 __all__ = [
     # Loader
+    "DEFAULT_MAX_PDF_SIZE_BYTES",
     "ExtractedPage",
+    "InvalidPDFSignatureError",
+    "PDFEmptyFileError",
     "PDFLoader",
     "PDFLoadingError",
+    "PDFSizeLimitExceededError",
+    "PDFValidationError",
     "load_pdf",
     # Cleaner
     "clean_text",

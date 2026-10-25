@@ -133,18 +133,60 @@ def test_non_pdf_file_raises(tmp_path):
         load_pdf(txt_file)
 
 
+from src.ingestion.pdf_loader import (
+    DEFAULT_MAX_PDF_SIZE_BYTES,
+    ExtractedPage,
+    InvalidPDFSignatureError,
+    PDFEmptyFileError,
+    PDFLoader,
+    PDFLoadingError,
+    PDFSizeLimitExceededError,
+    PDFValidationError,
+    load_pdf,
+)
+
+
 def test_empty_zero_byte_file_raises(tmp_path):
-    """Verify PDFLoadingError is raised when file is zero bytes."""
+    """Verify PDFEmptyFileError (and PDFLoadingError) is raised when file is zero bytes."""
     empty_pdf = tmp_path / "empty.pdf"
     empty_pdf.touch()
-    with pytest.raises(PDFLoadingError):
+    with pytest.raises(PDFEmptyFileError) as exc_info:
         load_pdf(empty_pdf)
+    assert "0 bytes / empty" in str(exc_info.value)
+    # Also verify backward compatibility (inherits from PDFLoadingError)
+    assert isinstance(exc_info.value, PDFLoadingError)
+
+
+def test_invalid_pdf_signature_raises(tmp_path):
+    """Verify InvalidPDFSignatureError is raised when file lacks %PDF- magic bytes."""
+    bad_sig_pdf = tmp_path / "fake.pdf"
+    bad_sig_pdf.write_bytes(b"NOT_A_PDF_STREAM_HEADER_DATA")
+    with pytest.raises(InvalidPDFSignatureError) as exc_info:
+        load_pdf(bad_sig_pdf)
+    assert "magic bytes" in str(exc_info.value)
+    assert isinstance(exc_info.value, PDFValidationError)
+
+
+def test_oversized_pdf_raises_size_limit_exceeded(tmp_path):
+    """Verify PDFSizeLimitExceededError is raised when file exceeds max_file_size_bytes."""
+    # Create a 2000-byte file starting with valid %PDF- magic bytes
+    large_pdf = tmp_path / "oversized.pdf"
+    large_pdf.write_bytes(b"%PDF-1.4\n" + b"X" * 1990)
+
+    # Set custom loader limit to 1000 bytes
+    loader = PDFLoader(max_file_size_bytes=1000)
+    with pytest.raises(PDFSizeLimitExceededError) as exc_info:
+        loader.load(large_pdf)
+    assert "exceeds maximum allowed limit" in str(exc_info.value)
+    assert "1000 bytes" in str(exc_info.value)
+    assert isinstance(exc_info.value, PDFValidationError)
 
 
 def test_corrupt_pdf_file_raises(tmp_path):
-    """Verify PDFLoadingError is raised for unreadable corrupt PDF streams."""
+    """Verify PDFLoadingError is raised for unreadable corrupt PDF streams with valid magic bytes."""
     corrupt_pdf = tmp_path / "corrupt.pdf"
-    corrupt_pdf.write_bytes(b"Not a valid PDF header or content")
+    # Starts with valid magic bytes to pass signature check, but subsequent stream is corrupt
+    corrupt_pdf.write_bytes(b"%PDF-1.4\nMalformed corrupted stream data without xref or trailer %%EOF")
     with pytest.raises(PDFLoadingError):
         load_pdf(corrupt_pdf)
 
@@ -158,3 +200,17 @@ def test_extracted_page_to_dict(sample_pdf_path):
     assert "Stacks and Queues" in d["text"]
     assert d["total_pages"] == 2
     assert "source_path" in d
+
+
+def test_pdf_metadata_access_failure_raises_pdf_loading_error(sample_pdf_path, monkeypatch):
+    """Verify PDFLoadingError is raised cleanly when file metadata access or stat fails."""
+    from pathlib import Path
+
+    def fake_stat(self, *args, **kwargs):
+        raise OSError("Simulated I/O permission or filesystem metadata failure")
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+    loader = PDFLoader()
+    with pytest.raises(PDFLoadingError) as exc_info:
+        loader.load(sample_pdf_path)
+    assert "Failed to access file metadata" in str(exc_info.value)

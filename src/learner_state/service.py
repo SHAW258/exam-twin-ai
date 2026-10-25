@@ -46,6 +46,11 @@ class InvalidStudentIdentifierError(LearnerStateError):
     pass
 
 
+class UnauthorizedStudentAccessError(LearnerStateError):
+    """Raised when an operation attempts unauthorized access across student boundaries."""
+    pass
+
+
 class LearnerStateService:
     """Core domain service for persistent student state and Error DNA derivation."""
 
@@ -81,9 +86,50 @@ class LearnerStateService:
             )
         return str(external_student_id).strip()
 
-    def register_or_get_student(self, external_student_id: str) -> StudentProfileSchema:
+    def enforce_student_authorization(
+        self,
+        requested_student_id: str,
+        authenticated_student_id: Optional[str] = None,
+    ) -> str:
+        """Enforce identity authorization boundary.
+
+        SECURITY BOUNDARY:
+        - In the core service layer, methods receive requested_student_id.
+        - When exposed over an HTTP API (Phase 9), the caller's identity MUST come from
+          an authenticated security principal (e.g., verified JWT 'sub' claim or session).
+        - If authenticated_student_id is supplied, it is the authoritative trusted principal.
+          Any mismatch with requested_student_id raises UnauthorizedStudentAccessError to
+          prevent Insecure Direct Object References (IDOR).
+        - If authenticated_student_id is None, the call runs in internal/trusted domain mode.
+
+        Args:
+            requested_student_id: Student ID provided in the request payload or parameter.
+            authenticated_student_id: Authoritative identity from authentication middleware.
+
+        Returns:
+            Validated clean student identifier.
+
+        Raises:
+            InvalidStudentIdentifierError: If requested_student_id is blank.
+            UnauthorizedStudentAccessError: If requested_student_id does not match authenticated_student_id.
+        """
+        clean_id = self._validate_student_id(requested_student_id)
+        if authenticated_student_id is not None:
+            clean_principal = str(authenticated_student_id).strip()
+            if clean_id != clean_principal:
+                raise UnauthorizedStudentAccessError(
+                    f"Authorization failed: requested student identifier '{clean_id}' does not "
+                    f"match authenticated principal '{clean_principal}'."
+                )
+        return clean_id
+
+    def register_or_get_student(
+        self,
+        external_student_id: str,
+        authenticated_student_id: Optional[str] = None,
+    ) -> StudentProfileSchema:
         """Retrieve existing student profile or create a new student record."""
-        clean_id = self._validate_student_id(external_student_id)
+        clean_id = self.enforce_student_authorization(external_student_id, authenticated_student_id)
         with self.db_manager.get_session() as session:
             student = self.student_repo.get_or_create(session, clean_id)
             data = student.to_dict()
@@ -97,6 +143,7 @@ class LearnerStateService:
         expected_answer: Optional[str] = None,
         topic: str = "General",
         context: Optional[str] = None,
+        authenticated_student_id: Optional[str] = None,
     ) -> DiagnosisRecordSchema:
         """Execute Phase 5 error classification and record immutable diagnosis event.
 
@@ -114,11 +161,14 @@ class LearnerStateService:
             expected_answer: Reference answer, if available.
             topic: Curricular topic name (e.g., 'Data Structures').
             context: Additional module or course notes context.
+            authenticated_student_id: Optional security principal from auth token.
 
         Returns:
             Persisted DiagnosisRecordSchema record.
         """
-        clean_student_id = self._validate_student_id(external_student_id)
+        clean_student_id = self.enforce_student_authorization(
+            external_student_id, authenticated_student_id
+        )
         resolved_topic = (topic or "General").strip()
 
         # Step 1: Run Phase 5 classifier inference
@@ -160,6 +210,7 @@ class LearnerStateService:
         topic: str,
         is_correct: bool,
         timestamp: Optional[datetime] = None,
+        authenticated_student_id: Optional[str] = None,
     ) -> TopicMasterySchema:
         """Record verified assessment outcome and recalculate topic mastery.
 
@@ -168,11 +219,14 @@ class LearnerStateService:
             topic: Curricular topic evaluated.
             is_correct: Verified assessment correctness boolean.
             timestamp: Optional execution timestamp.
+            authenticated_student_id: Optional security principal from auth token.
 
         Returns:
             Updated TopicMasterySchema.
         """
-        clean_student_id = self._validate_student_id(external_student_id)
+        clean_student_id = self.enforce_student_authorization(
+            external_student_id, authenticated_student_id
+        )
         resolved_topic = (topic or "General").strip()
 
         with self.db_manager.get_session() as session:
@@ -191,6 +245,7 @@ class LearnerStateService:
         external_student_id: str,
         window_days: int = 30,
         forgetting_threshold_days: int = 14,
+        authenticated_student_id: Optional[str] = None,
     ) -> ErrorDNASummary:
         """Derive an explainable, evidence-backed Error DNA summary for a student.
 
@@ -198,12 +253,15 @@ class LearnerStateService:
             external_student_id: Student identifier.
             window_days: Time window (in days) defining recent learning activity.
             forgetting_threshold_days: Heuristic elapsed days triggering a revision suggestion.
+            authenticated_student_id: Optional security principal from auth token.
 
         Returns:
             ErrorDNASummary schema detailing recurring errors, affected topics,
             temporal trend, and revision suggestions.
         """
-        clean_student_id = self._validate_student_id(external_student_id)
+        clean_student_id = self.enforce_student_authorization(
+            external_student_id, authenticated_student_id
+        )
         now = datetime.now(timezone.utc)
         recent_cutoff = now - timedelta(days=window_days)
 
@@ -248,7 +306,7 @@ class LearnerStateService:
             affected_topics: List[AffectedTopicItem] = []
             for topic_name, count in topic_counts:
                 # Find dominant error category for this specific topic
-                stmt_dominant = self.error_repo.get_category_counts(session, student_id)
+                stmt_dominant = self.error_repo.get_category_counts(session, student_id, topic=topic_name)
                 primary_cat = stmt_dominant[0][0] if stmt_dominant else None
                 affected_topics.append(
                     AffectedTopicItem(
@@ -339,9 +397,12 @@ class LearnerStateService:
         limit: int = 50,
         offset: int = 0,
         topic: Optional[str] = None,
+        authenticated_student_id: Optional[str] = None,
     ) -> List[DiagnosisRecordSchema]:
         """Fetch chronological diagnosis history for a student."""
-        clean_student_id = self._validate_student_id(external_student_id)
+        clean_student_id = self.enforce_student_authorization(
+            external_student_id, authenticated_student_id
+        )
         with self.db_manager.get_session() as session:
             student = self.student_repo.get_by_external_id(session, clean_student_id)
             if student is None:
