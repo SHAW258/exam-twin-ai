@@ -18,8 +18,11 @@ import type {
   ApiErrorResponse,
 } from '../types/api'
 
-// Base URL configuration: reads from environment or falls back to local FastAPI server
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+// Base URL configuration: reads from environment or defaults to relative path for Vite dev proxy / tunnels
+export const API_BASE_URL =
+  typeof import.meta.env.VITE_API_BASE_URL === 'string'
+    ? import.meta.env.VITE_API_BASE_URL
+    : ''
 
 // Token management: Session-isolated memory cache with sessionStorage rehydration
 // SessionStorage clears immediately on tab close, reducing exposure compared to persistent localStorage.

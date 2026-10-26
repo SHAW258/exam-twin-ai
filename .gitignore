@@ -53,3 +53,7 @@ artifacts/*
 # Frontend
 frontend/node_modules/
 frontend/dist/
+
+# Scratch & binaries
+scratch/
+
