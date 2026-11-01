@@ -215,23 +215,21 @@ class GeminiEmbeddingService(BaseEmbeddingService):
             from google.genai import types
             config = types.EmbedContentConfig(output_dimensionality=self._dimension)
 
-            # If batch exceeds Google's 100-chunk limit, immediately use offline embedding
-            if len(texts) > 90 and self._enable_fallback and self._fallback_service:
-                logger.info(
-                    "Large batch of %d chunks detected. Immediately using offline embedding model to prevent quota failure.",
-                    len(texts),
-                )
-                return self._fallback_service.embed_texts(texts)
+            # Gemini BatchEmbedContents has a hard limit of at most 100 items per batch.
+            # Partition texts into sub-batches of 80 chunks to guarantee headroom.
+            batch_size = 80
+            embeddings: List[List[float]] = []
 
-            response = self._client.models.embed_content(
-                model=self._model_name,
-                contents=texts,
-                config=config,
-            )
-            embeddings = []
-            for item in response.embeddings:
-                values = list(item.values)
-                embeddings.append(_l2_normalize(values))
+            for i in range(0, len(texts), batch_size):
+                batch_texts = texts[i : i + batch_size]
+                response = self._client.models.embed_content(
+                    model=self._model_name,
+                    contents=batch_texts,
+                    config=config,
+                )
+                for item in response.embeddings:
+                    values = list(item.values)
+                    embeddings.append(_l2_normalize(values))
             return embeddings
         except Exception as exc:
             if self._enable_fallback and self._fallback_service:

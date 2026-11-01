@@ -112,3 +112,24 @@ def test_gemini_embedding_service_requires_api_key(monkeypatch):
     with pytest.raises(EmbeddingError) as exc_info:
         GeminiEmbeddingService(api_key=None)
     assert "API key is not configured" in str(exc_info.value)
+
+
+def test_gemini_embedding_service_batches_over_100_items():
+    """Verify Gemini service splits batches of >100 chunks into safe sub-batches."""
+    from unittest.mock import MagicMock
+    svc = GeminiEmbeddingService(api_key="test-key", enable_fallback=False)
+    mock_client = MagicMock()
+
+    def fake_embed(model, contents, config):
+        res = MagicMock()
+        res.embeddings = [MagicMock(values=[0.1] * 768) for _ in contents]
+        return res
+
+    mock_client.models.embed_content.side_effect = fake_embed
+    svc._client = mock_client
+
+    texts = [f"Text chunk {i}" for i in range(185)]
+    results = svc.embed_texts(texts)
+    assert len(results) == 185
+    # 185 items with batch_size 80 should make exactly 3 calls: 80, 80, 25
+    assert mock_client.models.embed_content.call_count == 3
