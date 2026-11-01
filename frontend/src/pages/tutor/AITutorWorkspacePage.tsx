@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Bot,
@@ -7,17 +7,17 @@ import {
   Sparkles,
   ShieldCheck,
   Maximize2,
-  ExternalLink,
-  Upload,
-  CheckCircle2,
   AlertCircle,
+  Trash2,
+  Wifi,
+  WifiOff,
+  CheckCircle2,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
-import { Card } from '../../components/ui/Card'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
-import { api } from '../../api/client'
-import type { TutorAskResponse, TutorMode, DocumentListItem, SourceCitation } from '../../types/api'
+import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
+import type { TutorAskResponse, TutorMode, DocumentListItem, SourceCitation, TutorChatMessageItem } from '../../types/api'
 
 interface ChatMessage {
   id: string
@@ -28,29 +28,200 @@ interface ChatMessage {
   timestamp: string
 }
 
-export const AITutorWorkspacePage: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'msg-init',
-      sender: 'tutor',
-      text: 'Hello! I am your ExamTwin AI Study Twin. Every answer I provide is grounded in your uploaded course materials. Ask any question, request a Socratic hint, or practice with targeted drill questions.',
-      grounded: true,
-      citations: [],
-      timestamp: 'Just now',
-    },
-  ])
+const INITIAL_WELCOME: ChatMessage = {
+  id: 'msg-init',
+  sender: 'tutor',
+  text: 'Hello! I am your ExamTwin AI Study Twin. Every answer I provide is grounded in your uploaded course materials.\n\nAsk any conceptual question, request a Socratic hint, or practice with targeted drill questions.',
+  grounded: true,
+  citations: [],
+  timestamp: 'Just now',
+}
 
+export const AITutorWorkspacePage: React.FC = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_WELCOME])
   const [question, setQuestion] = useState('')
   const [mode, setMode] = useState<TutorMode>('qa')
   const [topic, setTopic] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<string>('')
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
   const [selectedCitation, setSelectedCitation] = useState<SourceCitation | null>(null)
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
 
+  const wsRef = useRef<WebSocket | null>(null)
+  const heartbeatTimerRef = useRef<number | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll chat to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isLoading])
+
+  // 1. Initial Load: Documents & Persistent Chat History from Database
   useEffect(() => {
     api.documents.list().then(setDocuments).catch(() => {})
+
+    // Load past chat messages from DB so previous chat is preserved across refreshes
+    api.tutor
+      .getHistory(50)
+      .then((history: TutorChatMessageItem[]) => {
+        if (history && history.length > 0) {
+          const formatted: ChatMessage[] = history.map((item) => ({
+            id: item.id,
+            sender: item.sender,
+            text: item.text,
+            citations: item.citations || [],
+            grounded: item.grounded ?? true,
+            timestamp: item.timestamp
+              ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'Earlier',
+          }))
+          setMessages(formatted)
+          // Pre-select first citation from latest tutor answer if available
+          const latestTutorWithCitations = [...formatted].reverse().find((m) => m.sender === 'tutor' && m.citations?.length)
+          if (latestTutorWithCitations?.citations?.length) {
+            setSelectedCitation(latestTutorWithCitations.citations[0])
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not pre-fetch tutor chat history via HTTP:', err)
+      })
   }, [])
 
+  // 2. Real-Time WebSocket Connection to Hold and Stream Chat
+  useEffect(() => {
+    let isMounted = true
+
+    const connectWebSocket = () => {
+      const token = getAuthToken()
+      if (!token) {
+        setWsStatus('disconnected')
+        return
+      }
+
+      const wsBase = getWsBaseUrl()
+      const wsUrl = `${wsBase}/api/v1/tutor/ws?token=${encodeURIComponent(token)}`
+
+      try {
+        setWsStatus('connecting')
+        const ws = new WebSocket(wsUrl)
+        wsRef.current = ws
+
+        ws.onopen = () => {
+          if (!isMounted) return
+          setWsStatus('connected')
+          console.log('[Tutor WS] Connected to ExamTwin AI live stream')
+
+          // Start heartbeat ping every 25s to prevent Cloudflare/Render idle timeouts
+          if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+          heartbeatTimerRef.current = window.setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }))
+            }
+          }, 25000)
+        }
+
+        ws.onmessage = (event) => {
+          if (!isMounted) return
+          try {
+            const data = JSON.parse(event.data)
+
+            if (data.type === 'history' && Array.isArray(data.messages)) {
+              if (data.messages.length > 0) {
+                const formatted: ChatMessage[] = data.messages.map((item: TutorChatMessageItem) => ({
+                  id: item.id,
+                  sender: item.sender,
+                  text: item.text,
+                  citations: item.citations || [],
+                  grounded: item.grounded ?? true,
+                  timestamp: item.timestamp
+                    ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Earlier',
+                }))
+                setMessages(formatted)
+                const latestWithCits = [...formatted].reverse().find((m) => m.sender === 'tutor' && m.citations?.length)
+                if (latestWithCits?.citations?.length) {
+                  setSelectedCitation(latestWithCits.citations[0])
+                }
+              }
+            } else if (data.type === 'status') {
+              setStatusMessage(data.message || 'Consulting verified course documents and synthesizing grounded proof...')
+            } else if (data.type === 'answer') {
+              setIsLoading(false)
+              setStatusMessage('')
+              const tutorMsg: ChatMessage = {
+                id: data.id || `tut-${Date.now()}`,
+                sender: 'tutor',
+                text: data.text,
+                citations: data.citations || [],
+                grounded: data.grounded ?? true,
+                timestamp: data.timestamp
+                  ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }
+              setMessages((prev) => [...prev, tutorMsg])
+              if (data.citations?.length) {
+                setSelectedCitation(data.citations[0])
+              }
+            } else if (data.type === 'history_cleared') {
+              setMessages([INITIAL_WELCOME])
+              setSelectedCitation(null)
+              setIsLoading(false)
+            } else if (data.type === 'error') {
+              setIsLoading(false)
+              setStatusMessage('')
+              const errorMsg: ChatMessage = {
+                id: `err-${Date.now()}`,
+                sender: 'tutor',
+                text: `Tutor error: ${data.message || 'Could not process question.'}`,
+                grounded: false,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }
+              setMessages((prev) => [...prev, errorMsg])
+            }
+          } catch (parseErr) {
+            console.error('[Tutor WS] Error parsing incoming packet:', parseErr)
+          }
+        }
+
+        ws.onclose = (event) => {
+          if (!isMounted) return
+          setWsStatus('disconnected')
+          if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+
+          // Auto-reconnect if not intentionally closed
+          if (event.code !== 1000 && event.code !== 1008) {
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              if (isMounted) connectWebSocket()
+            }, 4000)
+          }
+        }
+
+        ws.onerror = (err) => {
+          console.warn('[Tutor WS] Connection notice:', err)
+          setWsStatus('disconnected')
+        }
+      } catch (err) {
+        setWsStatus('disconnected')
+      }
+    }
+
+    connectWebSocket()
+
+    return () => {
+      isMounted = false
+      if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Page unmounted')
+        wsRef.current = null
+      }
+    }
+  }, [])
+
+  // 3. Send Question (over WebSocket if OPEN, else HTTP fallback)
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!question.trim() || isLoading) return
@@ -66,7 +237,22 @@ export const AITutorWorkspacePage: React.FC = () => {
     setMessages((prev) => [...prev, userMsg])
     setQuestion('')
     setIsLoading(true)
+    setStatusMessage('Consulting verified course documents and synthesizing grounded proof...')
 
+    // Attempt WebSocket transmission if connected
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'question',
+          question: userText,
+          mode,
+          topic: topic.trim() || undefined,
+        })
+      )
+      return
+    }
+
+    // HTTP Fallback if WebSocket is not open
     try {
       const res: TutorAskResponse = await api.tutor.ask({
         question: userText,
@@ -98,12 +284,31 @@ export const AITutorWorkspacePage: React.FC = () => {
       setMessages((prev) => [...prev, errorMsg])
     } finally {
       setIsLoading(false)
+      setStatusMessage('')
+    }
+  }
+
+  // 4. Clear Chat History
+  const handleClearHistory = async () => {
+    if (!window.confirm('Are you sure you want to clear your AI Tutor chat history?')) return
+
+    try {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'clear_history' }))
+      } else {
+        await api.tutor.clearHistory()
+        setMessages([INITIAL_WELCOME])
+        setSelectedCitation(null)
+      }
+    } catch (err) {
+      console.warn('Error clearing chat history:', err)
+      setMessages([INITIAL_WELCOME])
     }
   }
 
   return (
     <div className="h-[calc(100vh-7rem)] flex flex-col lg:flex-row gap-5 font-sans overflow-hidden">
-      {/* Left / Main: Chat Stream (8 cols) */}
+      {/* Left / Main: Chat Stream */}
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {/* Workspace Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70">
@@ -112,9 +317,37 @@ export const AITutorWorkspacePage: React.FC = () => {
               <Bot className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                {topic.trim() || 'General Course Study'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900">
+                  {topic.trim() || 'General Course Study'}
+                </h2>
+                {/* Real-time Connection Status Indicator */}
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                    wsStatus === 'connected'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : wsStatus === 'connecting'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                  title={
+                    wsStatus === 'connected'
+                      ? 'Connected to real-time WebSocket. Chat history is preserved automatically.'
+                      : 'WebSocket reconnecting. Messages will fall back to HTTP seamlessly.'
+                  }
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      wsStatus === 'connected'
+                        ? 'bg-emerald-500 animate-pulse'
+                        : wsStatus === 'connecting'
+                        ? 'bg-amber-500 animate-ping'
+                        : 'bg-slate-400'
+                    }`}
+                  />
+                  {wsStatus === 'connected' ? 'Live WebSocket' : wsStatus === 'connecting' ? 'Connecting...' : 'HTTP Mode'}
+                </span>
+              </div>
               <p className="text-[11px] text-slate-500">
                 {documents.length > 0
                   ? `Grounding Engine Active • ${documents.length} Indexed Course PDF${documents.length === 1 ? '' : 's'}`
@@ -127,6 +360,7 @@ export const AITutorWorkspacePage: React.FC = () => {
             {/* Mode Selector */}
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold">
               <button
+                type="button"
                 onClick={() => setMode('qa')}
                 className={`px-2.5 py-1 rounded-md transition-colors ${
                   mode === 'qa' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
@@ -135,6 +369,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                 Grounded Q&A
               </button>
               <button
+                type="button"
                 onClick={() => setMode('hint')}
                 className={`px-2.5 py-1 rounded-md transition-colors ${
                   mode === 'hint' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
@@ -143,6 +378,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                 Socratic Hint
               </button>
               <button
+                type="button"
                 onClick={() => setMode('practice')}
                 className={`px-2.5 py-1 rounded-md transition-colors ${
                   mode === 'practice' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
@@ -152,9 +388,20 @@ export const AITutorWorkspacePage: React.FC = () => {
               </button>
             </div>
 
+            {/* Clear History Button */}
+            <button
+              type="button"
+              onClick={handleClearHistory}
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              title="Clear Chat History"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+
+            {/* Distraction-Free Mode */}
             <Link
               to="/tutor/focus"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
               title="Enter Distraction-Free Mode"
             >
               <Maximize2 className="w-4 h-4" />
@@ -206,11 +453,16 @@ export const AITutorWorkspacePage: React.FC = () => {
                   <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
                     {msg.citations.map((c, idx) => (
                       <button
+                        type="button"
                         key={idx}
                         onClick={() => setSelectedCitation(c)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 text-[11px] font-semibold text-indigo-700 transition-colors"
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border ${
+                          selectedCitation === c
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
+                        }`}
                       >
-                        <BookOpen className="w-3 h-3 text-indigo-500" />
+                        <BookOpen className={`w-3 h-3 ${selectedCitation === c ? 'text-white' : 'text-indigo-500'}`} />
                         <span>Source: p.{c.page_number} ({Math.round(c.similarity_score * 100)}% match)</span>
                       </button>
                     ))}
@@ -223,9 +475,11 @@ export const AITutorWorkspacePage: React.FC = () => {
           {isLoading && (
             <div className="flex items-center gap-2 p-4 text-xs text-slate-500 italic">
               <LoadingSpinner size="sm" />
-              <span>Consulting verified course documents and synthesizing grounded proof...</span>
+              <span>{statusMessage || 'Consulting verified course documents and synthesizing grounded proof...'}</span>
             </div>
           )}
+
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Bar */}
@@ -251,7 +505,7 @@ export const AITutorWorkspacePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Right / Citation Inspector Panel (4 cols) */}
+      {/* Right / Citation Inspector Panel */}
       <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -292,7 +546,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                 Mathematically Bound Evidence
               </p>
               <p className="text-[11px] text-emerald-700">
-                This excerpt was extracted directly from your verified course PDF index in MySQL.
+                This excerpt was extracted directly from your verified course PDF index in PostgreSQL.
               </p>
             </div>
           </div>

@@ -7,6 +7,7 @@ import type {
   DocumentUploadResponse,
   TutorAskPayload,
   TutorAskResponse,
+  TutorChatMessageItem,
   DiagnosisPayload,
   DiagnosisResponse,
   ErrorDNASummary,
@@ -23,6 +24,20 @@ export const API_BASE_URL =
   typeof import.meta.env.VITE_API_BASE_URL === 'string'
     ? import.meta.env.VITE_API_BASE_URL
     : ''
+
+export const getWsBaseUrl = (): string => {
+  if (API_BASE_URL.startsWith('https://')) {
+    return API_BASE_URL.replace('https://', 'wss://')
+  }
+  if (API_BASE_URL.startsWith('http://')) {
+    return API_BASE_URL.replace('http://', 'ws://')
+  }
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}`
+  }
+  return 'ws://localhost:8000'
+}
 
 // Token management: Session-isolated memory cache with sessionStorage rehydration
 // SessionStorage clears immediately on tab close, reducing exposure compared to persistent localStorage.
@@ -233,6 +248,14 @@ export const api = {
       request<TutorAskResponse>('/api/v1/tutor/ask', {
         method: 'POST',
         body: JSON.stringify(payload),
+      }),
+
+    getHistory: (limit: number = 50): Promise<TutorChatMessageItem[]> =>
+      request<TutorChatMessageItem[]>(`/api/v1/tutor/history?limit=${limit}`),
+
+    clearHistory: (): Promise<{ status: string; message: string }> =>
+      request<{ status: string; message: string }>('/api/v1/tutor/history', {
+        method: 'DELETE',
       }),
   },
 

@@ -85,6 +85,16 @@ export interface TutorAskResponse {
   grounded: boolean;
 }
 
+export interface TutorChatMessageItem {
+  id: string;
+  sender: 'student' | 'tutor';
+  text: string;
+  mode?: TutorMode;
+  grounded?: boolean;
+  citations?: SourceCitation[];
+  timestamp?: string;
+}
+
 // ==========================================
 // Diagnostics & Error DNA
 // ==========================================

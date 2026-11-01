@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -211,4 +212,41 @@ class DocumentChunk(Base):
             "has_embedding": bool(self.embedding),
             "metadata": self.metadata_dict,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class TutorChatMessage(Base):
+    """SQLAlchemy model representing a persistent AI Tutor chat message."""
+
+    __tablename__ = "tutor_chat_messages"
+
+    id = Column(String(64), primary_key=True, default=lambda: f"msg_{uuid.uuid4().hex[:16]}")
+    student_id = Column(String(64), nullable=False, index=True)
+    sender = Column(String(16), nullable=False)  # 'student' | 'tutor'
+    text = Column(Text, nullable=False)
+    mode = Column(String(32), nullable=True, default="qa")
+    grounded = Column(Boolean, nullable=True, default=True)
+    citations = Column(Text, nullable=True)  # JSON-encoded array of SourceCitation
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        cits = []
+        if self.citations:
+            try:
+                cits = json.loads(self.citations)
+            except Exception:
+                cits = []
+        return {
+            "id": self.id,
+            "sender": self.sender,
+            "text": self.text,
+            "mode": self.mode or "qa",
+            "grounded": bool(self.grounded),
+            "citations": cits,
+            "timestamp": self.created_at.isoformat() if self.created_at else None,
         }

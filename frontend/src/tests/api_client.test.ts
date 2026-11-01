@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { api, getAuthToken, setAuthToken, clearAuthToken, API_BASE_URL } from '../api/client'
+import { api, getAuthToken, setAuthToken, clearAuthToken, API_BASE_URL, getWsBaseUrl } from '../api/client'
 
 describe('API Client & Token Management', () => {
   beforeEach(() => {
@@ -63,5 +63,32 @@ describe('API Client & Token Management', () => {
 
     await expect(api.auth.getMe()).rejects.toThrow(/Invalid or expired authentication token/)
     expect(getAuthToken()).toBeNull()
+  })
+
+  it('correctly maps HTTP base URL to WebSocket URL', () => {
+    const wsUrl = getWsBaseUrl()
+    expect(wsUrl).toMatch(/^(ws|wss):\/\//)
+  })
+
+  it('fetches chat history via api.tutor.getHistory', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          id: 'msg_1',
+          sender: 'student',
+          text: 'What is cryptography?',
+          mode: 'qa',
+          citations: [],
+          grounded: true,
+          timestamp: '2026-11-01T18:00:00Z',
+        },
+      ],
+    })
+
+    const history = await api.tutor.getHistory(10)
+    expect(history.length).toBe(1)
+    expect(history[0].text).toBe('What is cryptography?')
   })
 })
