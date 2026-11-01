@@ -82,7 +82,7 @@ class DocumentIngestionPipeline:
                     db_page = DocumentPage(
                         document_id=doc_id,
                         page_number=p.page_number,
-                        text=p.text,
+                        text=(p.text or "").replace("\x00", ""),
                     )
                     session.add(db_page)
                     session.flush()
@@ -99,15 +99,20 @@ class DocumentIngestionPipeline:
                 # Step 6: Create vector store chunk records
                 chunk_records = []
                 for chunk, emb in zip(chunks, embeddings):
+                    clean_chunk_text = (chunk.text or "").replace("\x00", "")
+                    clean_metadata = {
+                        k: (v.replace("\x00", "") if isinstance(v, str) else v)
+                        for k, v in (chunk.metadata or {}).items()
+                    }
                     chunk_records.append(
                         DocumentChunkRecord(
                             document_id=doc_id,
                             page_id=page_id_map.get(chunk.page_number),
                             page_number=chunk.page_number,
                             chunk_index=chunk.chunk_index,
-                            text=chunk.text,
+                            text=clean_chunk_text,
                             embedding=emb,
-                            metadata=chunk.metadata,
+                            metadata=clean_metadata,
                         )
                     )
 

@@ -112,6 +112,9 @@ def clean_text(
     if not text:
         return ""
 
+    # Sanitize null bytes (PostgreSQL TEXT/VARCHAR disallows 0x00)
+    text = text.replace("\x00", "")
+
     # Step 1: Normalize newline representations
     cleaned = normalize_line_breaks(text)
 

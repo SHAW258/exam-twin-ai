@@ -105,7 +105,8 @@ async def upload_document(
                 detail="File does not have a valid PDF magic-byte header '%PDF-'. Upload rejected.",
             )
 
-    safe_title = title.strip() if title else Path(filename).stem
+    safe_title = (title.strip() if title else Path(filename).stem).replace("\x00", "")
+    filename = filename.replace("\x00", "")
     doc_id = f"doc_{uuid.uuid4().hex[:12]}"
 
     # Write to temporary file for PDFLoader parsing

@@ -188,6 +188,9 @@ class PDFLoader:
                 # Fallback on extraction error for an individual page to preserve page sequence
                 raw_text = ""
 
+            # Sanitize null bytes (PostgreSQL TEXT/VARCHAR disallows 0x00)
+            raw_text = raw_text.replace("\x00", "")
+
             page_obj = ExtractedPage(
                 document_id=doc_id,
                 page_number=page_number,

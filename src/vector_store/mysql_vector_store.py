@@ -77,15 +77,17 @@ class MySQLVectorStore(VectorStore):
             count = 0
             for chunk_rec in chunks:
                 chunk_id = chunk_rec.id or f"chunk_{uuid.uuid4().hex[:16]}"
+                clean_text = (chunk_rec.text or "").replace("\x00", "")
+                clean_metadata_str = json.dumps(chunk_rec.metadata or {}).replace("\\u0000", "")
                 db_chunk = DocumentChunk(
                     id=chunk_id,
                     document_id=chunk_rec.document_id,
                     page_id=chunk_rec.page_id,
                     page_number=chunk_rec.page_number,
                     chunk_index=chunk_rec.chunk_index,
-                    text=chunk_rec.text,
+                    text=clean_text,
                     embedding=json.dumps(chunk_rec.embedding),
-                    chunk_metadata=json.dumps(chunk_rec.metadata),
+                    chunk_metadata=clean_metadata_str,
                 )
                 session.merge(db_chunk)
                 count += 1
