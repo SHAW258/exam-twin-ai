@@ -24,8 +24,8 @@ class DocumentIngestionPipeline:
         db_manager: Optional[DatabaseManager] = None,
         embedding_service: Optional[BaseEmbeddingService] = None,
         vector_store: Optional[VectorStore] = None,
-        chunk_size: int = 500,
-        chunk_overlap: int = 50,
+        chunk_size: int = 1500,
+        chunk_overlap: int = 150,
     ):
         self.db_manager = db_manager or get_db_manager()
         self.embedding_service = embedding_service or get_embedding_service()
