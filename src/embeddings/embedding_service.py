@@ -212,24 +212,55 @@ class GeminiEmbeddingService(BaseEmbeddingService):
             return self._fallback_service.embed_texts(texts)
 
         try:
+            import re
+            import time
             from google.genai import types
             config = types.EmbedContentConfig(output_dimensionality=self._dimension)
 
-            # Gemini BatchEmbedContents has a hard limit of at most 100 items per batch.
-            # Partition texts into sub-batches of 80 chunks to guarantee headroom.
-            batch_size = 80
+            # Gemini BatchEmbedContents allows at most 100 requests per batch,
+            # and Free Tier limits embed_content to 100 requests per minute.
+            # We partition texts into batches of 50 and handle 429 backoff gracefully.
+            batch_size = 50
             embeddings: List[List[float]] = []
 
             for i in range(0, len(texts), batch_size):
                 batch_texts = texts[i : i + batch_size]
-                response = self._client.models.embed_content(
-                    model=self._model_name,
-                    contents=batch_texts,
-                    config=config,
-                )
-                for item in response.embeddings:
-                    values = list(item.values)
-                    embeddings.append(_l2_normalize(values))
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        response = self._client.models.embed_content(
+                            model=self._model_name,
+                            contents=batch_texts,
+                            config=config,
+                        )
+                        for item in response.embeddings:
+                            values = list(item.values)
+                            embeddings.append(_l2_normalize(values))
+                        break
+                    except Exception as exc:
+                        is_rate_limit = (
+                            "429" in str(exc)
+                            or "RESOURCE_EXHAUSTED" in str(exc)
+                            or "quota" in str(exc).lower()
+                        )
+                        if is_rate_limit and attempt < max_retries - 1:
+                            match = re.search(r"retry in ([\d\.]+)s", str(exc), re.IGNORECASE)
+                            if match:
+                                wait_time = min(float(match.group(1)) + 2.0, 45.0)
+                            else:
+                                match2 = re.search(r"retryDelay['\"]?:\s*['\"]?(\d+)s", str(exc), re.IGNORECASE)
+                                wait_time = float(match2.group(1)) + 2.0 if match2 else 26.0
+
+                            logger.warning(
+                                "Gemini embedding free-tier quota hit (429). Waiting %.1f seconds for rate limit reset (attempt %d/%d)...",
+                                wait_time,
+                                attempt + 1,
+                                max_retries,
+                            )
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            raise exc
             return embeddings
         except Exception as exc:
             if self._enable_fallback and self._fallback_service:

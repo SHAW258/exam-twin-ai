@@ -131,5 +131,5 @@ def test_gemini_embedding_service_batches_over_100_items():
     texts = [f"Text chunk {i}" for i in range(185)]
     results = svc.embed_texts(texts)
     assert len(results) == 185
-    # 185 items with batch_size 80 should make exactly 3 calls: 80, 80, 25
-    assert mock_client.models.embed_content.call_count == 3
+    # 185 items with batch_size 50 should make exactly 4 calls: 50, 50, 50, 35
+    assert mock_client.models.embed_content.call_count == 4
