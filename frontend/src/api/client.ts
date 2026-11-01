@@ -63,6 +63,30 @@ export const clearAuthToken = (): void => {
   setAuthToken(null)
 }
 
+// Global Loading Subscriber for API requests
+type LoadingListener = (isLoading: boolean, activeRequests: number) => void
+const loadingListeners = new Set<LoadingListener>()
+let activeRequestsCount = 0
+
+export const subscribeToLoading = (listener: LoadingListener): (() => void) => {
+  loadingListeners.add(listener)
+  listener(activeRequestsCount > 0, activeRequestsCount)
+  return () => {
+    loadingListeners.delete(listener)
+  }
+}
+
+const notifyLoading = () => {
+  const isLoading = activeRequestsCount > 0
+  loadingListeners.forEach((listener) => {
+    try {
+      listener(isLoading, activeRequestsCount)
+    } catch {
+      // ignore
+    }
+  })
+}
+
 /**
  * Custom API client fetch wrapper with Bearer token injection,
  * JSON parsing, and normalized problem detail error handling.
@@ -71,6 +95,9 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  activeRequestsCount++
+  notifyLoading()
+  try {
   const token = getAuthToken()
   const headers = new Headers(options.headers || {})
 
@@ -124,6 +151,10 @@ async function request<T>(
   }
 
   return response.json() as Promise<T>
+  } finally {
+    activeRequestsCount = Math.max(0, activeRequestsCount - 1)
+    notifyLoading()
+  }
 }
 
 export const api = {

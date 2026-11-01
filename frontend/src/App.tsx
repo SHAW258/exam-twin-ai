@@ -1,3 +1,4 @@
+import { GlobalApiLoader } from './components/ui/GlobalApiLoader'
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
@@ -40,6 +41,7 @@ import { GlobalErrorPage } from './pages/error/GlobalErrorPage'
 export const App: React.FC = () => {
   return (
     <AuthProvider>
+      <GlobalApiLoader />
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
