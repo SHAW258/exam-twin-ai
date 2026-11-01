@@ -142,7 +142,7 @@ class Settings(BaseSettings):
         default=60 * 24,  # 24 hours
         description="JWT token validity duration in minutes.",
     )
-    CORS_ORIGINS: List[str] = Field(
+    CORS_ORIGINS: Any = Field(
         default_factory=lambda: [
             "http://localhost:3000",
             "http://localhost:5173",
