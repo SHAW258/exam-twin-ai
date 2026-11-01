@@ -10,6 +10,8 @@ import {
   Layers,
   Bot,
   AlertCircle,
+  AlertTriangle,
+  Trash2,
   FileCheck,
   Calendar,
   Lock,
@@ -29,6 +31,27 @@ export const StudyMaterialsPage: React.FC = () => {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [filterQuery, setFilterQuery] = useState('')
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+
+  const handleDeleteDocument = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    if (!window.confirm('Are you sure you want to delete this document and all its indexed chunks?')) {
+      return
+    }
+    setIsDeleting(id)
+    try {
+      await api.documents.delete(id)
+      setUploadSuccess('Document removed successfully.')
+      await loadDocuments()
+      if (selectedDocId === id) {
+        setSelectedDocId(null)
+      }
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : 'Failed to delete document.')
+    } finally {
+      setIsDeleting(null)
+    }
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -215,9 +238,26 @@ export const StudyMaterialsPage: React.FC = () => {
                         <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
                         <span className="font-bold truncate">{doc.title}</span>
                       </div>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
-                        Indexed
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {doc.chunks_count > 0 ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                            Indexed
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
+                            Incomplete
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteDocument(doc.id, e)}
+                          disabled={isDeleting === doc.id}
+                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 transition-colors"
+                          title="Delete document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1">
@@ -235,15 +275,35 @@ export const StudyMaterialsPage: React.FC = () => {
             {activeDoc ? (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Grounded in MySQL Vector Store
-                  </span>
+                  {activeDoc.chunks_count > 0 ? (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Grounded in MySQL Vector Store
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Ingestion Incomplete (0 Chunks)
+                    </span>
+                  )}
 
-                  <Link to="/tutor">
-                    <Button size="sm" variant="outline" className="text-xs" leftIcon={<Bot className="w-3.5 h-3.5" />}>
-                      Ask Tutor About This Document
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                      leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+                      onClick={() => handleDeleteDocument(activeDoc.id)}
+                      isLoading={isDeleting === activeDoc.id}
+                    >
+                      Delete
                     </Button>
-                  </Link>
+                    {activeDoc.chunks_count > 0 && (
+                      <Link to="/tutor">
+                        <Button size="sm" variant="outline" className="text-xs" leftIcon={<Bot className="w-3.5 h-3.5" />}>
+                          Ask Tutor About This Document
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-start gap-4">
@@ -288,15 +348,27 @@ export const StudyMaterialsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-slate-800">
-                    <FileCheck className="w-4 h-4 text-emerald-600" />
-                    <span>Evidence-Grounded Tutoring Ready</span>
+                {activeDoc.chunks_count > 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-slate-800">
+                      <FileCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Evidence-Grounded Tutoring Ready</span>
+                    </div>
+                    <p className="text-slate-600 leading-relaxed text-[11px]">
+                      This document is ingested, chunked, and embedded. When you ask conceptual questions in the AI Tutor or take diagnostic drills, the retrieval engine queries these semantic chunks and cites exact page numbers.
+                    </p>
                   </div>
-                  <p className="text-slate-600 leading-relaxed text-[11px]">
-                    This document is ingested, chunked, and embedded. When you ask conceptual questions in the AI Tutor or take diagnostic drills, the retrieval engine queries these semantic chunks and cites exact page numbers.
-                  </p>
-                </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      <span>Document Incomplete (0 Chunks Indexed)</span>
+                    </div>
+                    <p className="text-amber-800 leading-relaxed text-[11px]">
+                      This document has 0 semantic chunks indexed (caused by a previous upload interruption or Gemini quota limit). Delete this entry and re-upload the document so the AI Tutor can access its contents.
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div className="py-12 text-center text-slate-400 text-xs">

@@ -216,3 +216,32 @@ def get_document_details(
             chunks_count=len(doc.chunks) if doc.chunks else 0,
             created_at=doc.created_at.isoformat() if doc.created_at else None,
         )
+
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Delete a document and its associated pages and chunks",
+)
+def delete_document(
+    document_id: str,
+    current_student: Student = Depends(get_current_student),
+    db_manager: DatabaseManager = Depends(get_db_manager),
+) -> dict:
+    """Delete a document and all related pages/chunks with student ownership enforcement."""
+    with db_manager.get_session() as session:
+        doc = session.get(Document, document_id)
+        if doc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document '{document_id}' not found.",
+            )
+
+        if doc.owner_user_id != current_student.external_student_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You do not have permission to delete this document.",
+            )
+
+        session.delete(doc)
+        return {"status": "SUCCESS", "message": f"Document '{document_id}' deleted successfully."}

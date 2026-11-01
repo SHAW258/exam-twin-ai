@@ -220,6 +220,11 @@ export const api = {
 
     getById: (id: string): Promise<DocumentListItem> =>
       request<DocumentListItem>(`/api/v1/documents/${encodeURIComponent(id)}`),
+
+    delete: (id: string): Promise<{ status: string; message: string }> =>
+      request<{ status: string; message: string }>(`/api/v1/documents/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }),
   },
 
   // AI Tutor
