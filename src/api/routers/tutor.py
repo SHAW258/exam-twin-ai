@@ -51,6 +51,7 @@ def ask_ai_tutor(
             question=payload.question,
             user_id=student_id,
             document_ids=payload.document_ids,
+            fallback_to_general=True,
         )
 
     citations = [

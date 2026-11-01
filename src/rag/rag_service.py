@@ -95,6 +95,7 @@ class RAGService:
         top_k: Optional[int] = None,
         document_ids: Optional[List[str]] = None,
         min_similarity: Optional[float] = None,
+        fallback_to_general: bool = False,
     ) -> RAGResponse:
         """Answer a student's question grounded strictly in retrieved course documents.
 
@@ -169,8 +170,17 @@ class RAGService:
             min_similarity=min_similarity,
         )
 
-        # Step 2: If no course chunks are retrieved, answer using foundational academic principles
+        # Step 2: If no course chunks are retrieved, handle according to fallback policy
         if not chunks:
+            if not fallback_to_general:
+                logger.info("No relevant chunks found above similarity threshold for query.")
+                return RAGResponse(
+                    answer=self.insufficient_context_message,
+                    sources=[],
+                    retrieved_chunks=0,
+                    is_grounded=False,
+                    question=cleaned_question,
+                )
             logger.info("No relevant chunks found above similarity threshold for query. Generating general principles answer.")
             general_prompt = (
                 f"You are ExamTwin, an academic AI tutor for university students.\n"
