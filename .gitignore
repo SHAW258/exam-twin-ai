@@ -57,3 +57,5 @@ frontend/dist/
 # Scratch & binaries
 scratch/
 
+.vercel
+node_modules/

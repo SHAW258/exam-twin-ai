@@ -261,6 +261,12 @@ class GeminiService(BaseLLMService):
                     )
                     return self._fallback_service.generate(prompt, system_instruction=system_instruction)
 
+                is_not_found = "404" in str(exc) or "not found" in str(exc).lower() or "no longer available" in str(exc).lower()
+                if is_not_found and self._model_name != "gemini-3.5-flash-lite":
+                    logger.warning("Model %s is no longer available. Automatically falling back to gemini-3.5-flash-lite.", self._model_name)
+                    self._model_name = "gemini-3.5-flash-lite"
+                    continue
+
                 is_transient = "503" in str(exc) or "unavailable" in str(exc).lower() or "timeout" in str(exc).lower()
                 if is_transient and attempt < max_attempts:
                     import random
