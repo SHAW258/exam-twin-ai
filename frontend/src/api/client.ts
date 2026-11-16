@@ -21,11 +21,17 @@ import type {
   ApiErrorResponse,
 } from '../types/api'
 
-// Base URL configuration: reads from environment or defaults to relative path for Vite dev proxy / tunnels
-export const API_BASE_URL =
+// Base URL configuration: in local dev, default to relative path '' to route via Vite dev proxy.
+// This completely avoids CORS preflight failures and IPv6 [::1] connection issues in modern browsers.
+const rawBaseUrl =
   typeof import.meta.env.VITE_API_BASE_URL === 'string'
-    ? import.meta.env.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL.trim()
     : ''
+
+export const API_BASE_URL =
+  !rawBaseUrl || rawBaseUrl.includes('localhost') || rawBaseUrl.includes('127.0.0.1')
+    ? ''
+    : rawBaseUrl
 
 export const getWsBaseUrl = (): string => {
   if (API_BASE_URL.startsWith('https://')) {
