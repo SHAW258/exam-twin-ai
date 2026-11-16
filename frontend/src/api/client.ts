@@ -38,7 +38,7 @@ export const getWsBaseUrl = (): string => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     return `${proto}//${window.location.host}`
   }
-  return 'ws://localhost:8000'
+  return 'ws://127.0.0.1:8000'
 }
 
 // Token management: Session-isolated memory cache with sessionStorage rehydration
