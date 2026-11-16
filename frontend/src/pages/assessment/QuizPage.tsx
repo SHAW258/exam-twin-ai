@@ -169,8 +169,8 @@ export const QuizPage: React.FC = () => {
                 topic,
                 context: q.explanation || '',
               })
-              if (diag?.misconception_type) {
-                diagEntries[idx] = `${diag.misconception_type}: ${diag.remediation_guidance || diag.explanation || ''}`
+              if (diag?.error_category) {
+                diagEntries[idx] = `Identified error pattern: ${diag.error_category} (Confidence: ${Math.round((diag.confidence_score || 0) * 100)}%)`
               }
             } catch {}
           }
