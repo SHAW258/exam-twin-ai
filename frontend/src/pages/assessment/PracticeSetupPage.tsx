@@ -100,9 +100,11 @@ export const PracticeSetupPage: React.FC = () => {
               onChange={(e) => setQuestionCount(Number(e.target.value))}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             >
-              <option value={5}>5 Questions</option>
+              <option value={5}>5 Questions (Quick Practice)</option>
               <option value={7}>7 Questions</option>
-              <option value={10}>10 Questions</option>
+              <option value={10}>10 Questions (Standard Quiz)</option>
+              <option value={15}>15 Questions (Extended Practice)</option>
+              <option value={20}>20 Questions (Comprehensive Exam)</option>
             </select>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-2">

@@ -42,7 +42,7 @@ export const MarketingLandingPage: React.FC = () => {
               <a href="#grounding" className="hover:text-[#2563EB] transition-colors">Grounding Engine</a>
               <a href="#error-dna" className="hover:text-[#2563EB] transition-colors">Error DNA</a>
               <a href="#comparison" className="hover:text-[#2563EB] transition-colors">Why CodeKnot</a>
-              <a href="#tracks" className="hover:text-[#2563EB] transition-colors">Pre-Tuned Tracks</a>
+              <a href="#tracks" className="hover:text-[#2563EB] transition-colors">Exam Prep</a>
             </div>
           </div>
 
@@ -269,12 +269,12 @@ export const MarketingLandingPage: React.FC = () => {
             ========================================================================= */}
         <section className="mt-24 w-full text-left" id="grounding">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
-            <span className="text-xs font-bold text-[#2563EB] tracking-wider uppercase">Architectural Pillars</span>
+            <span className="text-xs font-bold text-[#2563EB] tracking-wider uppercase">Core Learning Features</span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Engineered for High-Stakes Intellectual Rigor
+              Built for Accurate, Reliable Exam Preparation
             </h2>
             <p className="text-sm text-slate-600">
-              Generic chatbots hallucinate when test questions demand precision. CodeKnot isolates your exact curriculum, indexes authoritative medical and legal doctrines, and anchors every token.
+              Generic chatbots often guess when test questions need precision. CodeKnot focuses strictly on your uploaded course materials and textbooks, anchoring every answer to real facts.
             </p>
           </div>
 
@@ -385,12 +385,12 @@ export const MarketingLandingPage: React.FC = () => {
             ========================================================================= */}
         <section className="mt-24 w-full text-left" id="error-dna">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
-            <span className="text-xs font-bold text-[#2563EB] tracking-wider uppercase">System Architecture</span>
+            <span className="text-xs font-bold text-[#2563EB] tracking-wider uppercase">How It Works</span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              From Raw Syllabi to Board Mastery in Four Steps
+              Master Your Course Material in 4 Simple Steps
             </h2>
             <p className="text-sm text-slate-600">
-              The closed-loop learning cycle engineered to turn cognitive weaknesses into verified retention.
+              A clear and simple study workflow designed to turn learning gaps into proven understanding.
             </p>
           </div>
 
@@ -442,12 +442,12 @@ export const MarketingLandingPage: React.FC = () => {
             ========================================================================= */}
         <section className="mt-24 w-full text-left" id="tracks">
           <div className="text-center max-w-2xl mx-auto space-y-3 mb-12">
-            <span className="text-xs font-bold text-[#2563EB] tracking-wider uppercase">Curriculum Coverage</span>
+            <span className="text-xs font-bold text-[#2563EB] tracking-wider uppercase">Course Coverage</span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Pre-Tuned for Rigorous High-Stakes Standardized Exams
+              Ready for Higher Education & Professional Exams
             </h2>
             <p className="text-sm text-slate-600">
-              Pre-indexed with standard doctrinal references and high-yield board question patterns.
+              Structured to support comprehensive course materials, foundational subjects, and board examination patterns.
             </p>
           </div>
 
@@ -456,7 +456,7 @@ export const MarketingLandingPage: React.FC = () => {
               <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
                 <GraduationCap className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900">MCAT & USMLE</h3>
+              <h3 className="text-sm font-bold text-slate-900">Medical & Life Sciences</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Guyton & Hall Physiology, Robbins Pathology, First Aid, and USMLE Step 1/2 CK question banks.
               </p>

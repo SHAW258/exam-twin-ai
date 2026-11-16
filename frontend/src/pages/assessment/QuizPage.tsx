@@ -47,7 +47,7 @@ export const QuizPage: React.FC = () => {
   }
 
   const topic = state.topic || 'Course Material'
-  const questionCount = Math.min(10, Math.max(1, state.questionCount || 5))
+  const questionCount = Math.min(25, Math.max(1, state.questionCount || 5))
   const documentIds = state.documentIds || (state.documentId ? [state.documentId] : undefined)
 
   const [isLoading, setIsLoading] = useState(true)
