@@ -1,13 +1,10 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import {
   GraduationCap,
   ArrowLeft,
   Search,
   LayoutDashboard,
-  ShieldAlert,
-  Clock,
-  ServerCrash,
   Radio,
   Copy,
   ExternalLink,
@@ -16,7 +13,6 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 
 export const GlobalErrorPage: React.FC = () => {
-  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'404' | '403' | 'expired' | '500'>('404')
   const [copied, setCopied] = useState(false)
 
@@ -36,7 +32,7 @@ export const GlobalErrorPage: React.FC = () => {
       code: '404',
       badge: 'MISSING CORPUS ENTITY',
       badgeColor: 'text-rose-600 bg-rose-50 border-rose-200',
-      title: 'Page Not Found in ExamTwin Corpus',
+      title: 'Page Not Found in CodeKnot Corpus',
       description:
         'The syllabus resource, quiz session, or telemetry audit URL you requested could not be located. It may have been relocated, restructured during curricular reindexing, or archived.',
       signature: '#404-NOT-FOUND',
@@ -88,7 +84,7 @@ export const GlobalErrorPage: React.FC = () => {
           <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-200">
             <GraduationCap className="w-5 h-5" />
           </div>
-          <span className="font-bold text-xl text-slate-900 tracking-tight">ExamTwin</span>
+          <span className="font-bold text-xl text-slate-900 tracking-tight">CodeKnot</span>
         </Link>
         <Link
           to="/"
@@ -123,7 +119,7 @@ export const GlobalErrorPage: React.FC = () => {
 
         <div className="text-center">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            • EXAMTWIN DIAGNOSTICS • OPERATIONAL CORE
+            • CODEKNOT SYSTEM STATUS
           </span>
         </div>
 
@@ -219,7 +215,7 @@ export const GlobalErrorPage: React.FC = () => {
               </button>
               <span className="text-slate-300">|</span>
               <Link to="/help" className="font-bold text-slate-700 hover:underline flex items-center gap-1 text-xs">
-                Exam Support Desk <ExternalLink className="w-3 h-3" />
+                Support <ExternalLink className="w-3 h-3" />
               </Link>
             </div>
           </div>
@@ -227,7 +223,7 @@ export const GlobalErrorPage: React.FC = () => {
       </div>
 
       <p className="text-center text-[11px] text-slate-400 py-2">
-        © 2025 ExamTwin • <Link to="/help" className="hover:underline">Pledge</Link> • <Link to="/help" className="hover:underline">Privacy</Link> • <Link to="/help" className="hover:underline">Terms</Link>
+        © 2026 CodeKnot • <Link to="/help" className="hover:underline">Help & Guides</Link> • <Link to="/help" className="hover:underline">Privacy</Link> • <Link to="/help" className="hover:underline">Terms</Link>
       </p>
     </div>
   )

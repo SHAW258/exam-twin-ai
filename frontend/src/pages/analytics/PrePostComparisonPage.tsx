@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { GitCompare, CheckCircle2, TrendingUp, ShieldCheck, ArrowLeft, Play } from 'lucide-react'
+import { GitCompare, ArrowLeft, Play } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { GainBadge } from '../../components/ui/Badge'
-import { LoadingSpinner, EmptyState } from '../../components/ui/LoadingAndEmpty'
+import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { api } from '../../api/client'
 import type { MeasurementResponse } from '../../types/api'
 
@@ -33,7 +33,7 @@ export const PrePostComparisonPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="text-xs text-slate-500 mb-1">
-            ExamTwin / Student Suite / Psychometrics / Pre-Post Comparison
+            CodeKnot / Student Suite / Psychometrics / Pre-Post Comparison
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Pre-Test and Post-Test Gain Comparison

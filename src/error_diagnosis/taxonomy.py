@@ -1,7 +1,7 @@
-"""Canonical Error Taxonomy and Structured Diagnosis Results for ExamTwin.
+"""Canonical Error Taxonomy and Structured Diagnosis Results for CodeKnot.
 
 Defines the 7 standard error classifications, data validation schemas,
-and remediation mappings required by the ExamTwin specification.
+and remediation mappings required by the CodeKnot specification.
 """
 
 from enum import Enum
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class ErrorType(str, Enum):
-    """The canonical 7 error categories utilized in ExamTwin diagnosis."""
+    """The canonical 7 error categories utilized in CodeKnot diagnosis."""
 
     CONCEPTUAL_MISUNDERSTANDING = "CONCEPTUAL_MISUNDERSTANDING"
     RECALL_FAILURE = "RECALL_FAILURE"

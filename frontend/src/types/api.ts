@@ -1,5 +1,5 @@
 // ==========================================
-// ExamTwin Frontend API Types
+// CodeKnot Frontend API Types
 // Contract-aligned with FastAPI backend schemas
 // ==========================================
 
@@ -11,6 +11,30 @@ export interface StudentRegisterPayload {
   password: string;
   email?: string;
   full_name?: string;
+}
+
+export interface RegisterOTPPayload {
+  username: string;
+  password: string;
+  email: string;
+  full_name?: string;
+}
+
+export interface VerifyRegisterOTPPayload {
+  email: string;
+  otp_code: string;
+}
+
+export interface ResendRegisterOTPPayload {
+  email: string;
+}
+
+export interface OTPRequestResponse {
+  message: string;
+  email: string;
+  expires_in_minutes: number;
+  resend_cooldown_seconds: number;
+  dev_otp_code?: string | null;
 }
 
 export interface StudentLoginPayload {
@@ -220,6 +244,26 @@ export interface MeasurementResponse {
   is_verified: boolean;
   summary_explanation: string;
   measured_at?: string;
+}
+
+// ==========================================
+// Support Tickets
+// ==========================================
+export interface SupportTicketPayload {
+  category: string;
+  subject: string;
+  message: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  student_id: string;
+  category: string;
+  subject: string;
+  message: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ==========================================

@@ -12,11 +12,11 @@ describe('API Client & Token Management', () => {
     expect(getAuthToken()).toBeNull()
     setAuthToken('mock-jwt-token-123')
     expect(getAuthToken()).toBe('mock-jwt-token-123')
-    expect(sessionStorage.getItem('examtwin_token')).toBe('mock-jwt-token-123')
+    expect(sessionStorage.getItem('codeknot_token')).toBe('mock-jwt-token-123')
 
     clearAuthToken()
     expect(getAuthToken()).toBeNull()
-    expect(sessionStorage.getItem('examtwin_token')).toBeNull()
+    expect(sessionStorage.getItem('codeknot_token')).toBeNull()
   })
 
   it('injects Bearer token into outgoing authenticated requests', async () => {

@@ -1,4 +1,4 @@
-"""Authentication and security module for ExamTwin Phase 9 FastAPI layer.
+"""Authentication and security module for CodeKnot Phase 9 FastAPI layer.
 
 Implements:
 1. OWASP-recommended scrypt password hashing with cryptographically random salts.

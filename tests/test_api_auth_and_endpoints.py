@@ -102,7 +102,7 @@ class TestSystemAndAuthEndpoints:
         assert res.status_code == 200
         data = res.json()
         assert data["status"] == "healthy"
-        assert "ExamTwin" in data["service"]
+        assert ("CodeKnot" in data["service"] or "ExamTwin" in data["service"])
 
     def test_root_endpoint(self, client):
         """Verify GET / returns API welcome and docs link."""

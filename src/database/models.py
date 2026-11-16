@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM models for ExamTwin document, page, and chunk storage."""
+"""SQLAlchemy ORM models for CodeKnot document, page, and chunk storage."""
 
 import json
 import uuid
@@ -250,3 +250,50 @@ class TutorChatMessage(Base):
             "citations": cits,
             "timestamp": self.created_at.isoformat() if self.created_at else None,
         }
+
+class RegistrationOTP(Base):
+    """Pending registration record used for email OTP verification before account activation."""
+
+    __tablename__ = "registration_otps"
+
+    id = Column(String(64), primary_key=True, default=lambda: f"otp_{uuid.uuid4().hex[:16]}")
+    email = Column(String(255), nullable=False, index=True)
+    username = Column(String(64), nullable=False, index=True)
+    full_name = Column(String(255), nullable=True)
+    hashed_password = Column(String(255), nullable=False)
+    otp_code = Column(String(16), nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)
+    resend_count = Column(Integer, nullable=False, default=0)
+    expires_at = Column(DateTime, nullable=False)
+    last_sent_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    consumed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class SupportTicket(Base):
+    """Student support ticket entity persisted in relational storage."""
+
+    __tablename__ = "support_tickets"
+
+    id = Column(String(64), primary_key=True, default=lambda: f"ticket_{uuid.uuid4().hex[:12]}")
+    student_id = Column(String(64), nullable=False, index=True)
+    category = Column(String(64), nullable=False, default="General Support")
+    subject = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String(32), nullable=False, default="OPEN")  # OPEN, IN_PROGRESS, RESOLVED
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "student_id": self.student_id,
+            "category": self.category,
+            "subject": self.subject,
+            "message": self.message,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+

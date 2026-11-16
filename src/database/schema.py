@@ -1,4 +1,4 @@
-"""Schema initialization and migration management for ExamTwin relational store."""
+"""Schema initialization and migration management for CodeKnot relational store."""
 
 from typing import Optional, Union
 from sqlalchemy import Engine
@@ -46,7 +46,7 @@ def drop_tables(target: Optional[Union[Engine, DatabaseManager]] = None) -> None
 if __name__ == "__main__":
     import sys
 
-    print("Initializing ExamTwin database tables...")
+    print("Initializing CodeKnot database tables...")
     try:
         create_tables()
         print("Database schema successfully created.")

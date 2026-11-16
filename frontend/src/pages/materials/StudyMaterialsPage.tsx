@@ -1,24 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  BookOpen,
-  Upload,
-  FileText,
-  Search,
-  CheckCircle2,
-  RefreshCw,
-  Layers,
-  Bot,
-  AlertCircle,
-  AlertTriangle,
-  Trash2,
-  FileCheck,
-  Calendar,
-  Lock,
-} from 'lucide-react'
+import { Upload, FileText, CheckCircle2, RefreshCw, Bot, AlertCircle, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Badge } from '../../components/ui/Badge'
 import { LoadingSpinner, EmptyState } from '../../components/ui/LoadingAndEmpty'
 import { api } from '../../api/client'
 import type { DocumentListItem } from '../../types/api'
@@ -30,41 +14,13 @@ export const StudyMaterialsPage: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
-  const [filterQuery, setFilterQuery] = useState('')
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
-
-  const handleDeleteDocument = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation()
-    if (!window.confirm('Are you sure you want to delete this document and all its indexed chunks?')) {
-      return
-    }
-    setIsDeleting(id)
-    try {
-      await api.documents.delete(id)
-      setUploadSuccess('Document removed successfully.')
-      await loadDocuments()
-      if (selectedDocId === id) {
-        setSelectedDocId(null)
-      }
-    } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to delete document.')
-    } finally {
-      setIsDeleting(null)
-    }
-  }
-
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadDocuments = async () => {
-    setIsLoading(true)
     try {
       const docs = await api.documents.list()
       setDocuments(docs)
-      if (docs.length > 0 && (!selectedDocId || !docs.some((d) => d.id === selectedDocId))) {
-        setSelectedDocId(docs[0].id)
-      } else if (docs.length === 0) {
-        setSelectedDocId(null)
-      }
+      if (docs.length > 0 && !selectedDocId) setSelectedDocId(docs[0].id)
     } catch (err) {
       console.warn('Failed to load documents:', err)
     } finally {
@@ -72,28 +28,18 @@ export const StudyMaterialsPage: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    loadDocuments()
-  }, [])
+  useEffect(() => { loadDocuments() }, [])
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setUploadError('Only PDF documents are supported for textbook and lecture grounding.')
-      return
-    }
-
-    setUploadError(null)
-    setUploadSuccess(null)
-    setIsUploading(true)
-
+    if (!file.name.toLowerCase().endsWith('.pdf')) { setUploadError('Please upload a PDF file.'); return }
+    setIsUploading(true); setUploadError(null); setUploadSuccess(null)
     try {
-      const res = await api.documents.upload(file)
-      setUploadSuccess(`Document '${file.name}' successfully parsed: ${res.pages_count} pages, ${res.chunks_count} semantic chunks indexed.`)
+      const result = await api.documents.upload(file)
+      setUploadSuccess(`"${result.filename}" uploaded successfully.`)
       await loadDocuments()
-      setSelectedDocId(res.document_id)
+      setSelectedDocId(result.document_id)
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed.')
     } finally {
@@ -102,282 +48,97 @@ export const StudyMaterialsPage: React.FC = () => {
     }
   }
 
-  const filteredDocs = documents.filter((d) =>
-    d.title.toLowerCase().includes(filterQuery.toLowerCase())
-  )
+  const handleDelete = async (docId: string) => {
+    try { await api.documents.delete(docId); if (selectedDocId === docId) setSelectedDocId(null); await loadDocuments() }
+    catch (err) { console.warn('Delete failed:', err) }
+  }
 
-  const activeDoc = documents.find((d) => d.id === selectedDocId) || null
+  const activeDoc = documents.find(d => d.id === selectedDocId)
+  const totalChunks = documents.reduce((sum, d) => sum + d.chunks_count, 0)
+
+  if (isLoading) {
+    return <div className="py-20 flex flex-col items-center justify-center space-y-4"><LoadingSpinner size="lg" /><p className="text-xs text-slate-500 font-medium">Loading study materials...</p></div>
+  }
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-slate-500 mb-1">
-            ExamTwin / Student Suite / Study Materials / Ingestion & Vector Library
-          </div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Study Materials Library
-            </h1>
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              {documents.length} Document{documents.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-slate-600 max-w-2xl leading-relaxed">
-            Upload course syllabus PDFs, lecture slides, and textbook excerpts. ExamTwin extracts text, generates vector embeddings, and grounds your AI Study Twin strictly in your uploaded materials.
-          </p>
+          <div className="text-xs text-slate-500 mb-1">CodeKnot / Study Materials</div>
+          <h1 className="text-2xl font-extrabold text-[#14213D] tracking-tight">Study Materials</h1>
+          <p className="mt-1 text-xs text-slate-600 max-w-2xl leading-relaxed">Upload your PDF syllabus, lecture slides, or notes. CodeKnot uses them for grounded tutoring and PDF-based practice.</p>
         </div>
-
         <div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="application/pdf"
-            className="hidden"
-          />
-          <Button
-            variant="primary"
-            onClick={() => fileInputRef.current?.click()}
-            isLoading={isUploading}
-            className="bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 font-semibold text-xs py-2.5 px-4"
-            leftIcon={<Upload className="w-4 h-4" />}
-          >
-            + Upload PDF Material
+          <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" id="pdf-upload-input" />
+          <Button variant="primary" size="md" className="bg-[#2563EB] hover:bg-[#1d4ed8]" isLoading={isUploading} leftIcon={<Upload className="w-4 h-4" />} onClick={() => fileInputRef.current?.click()}>
+            {isUploading ? 'Uploading...' : 'Upload PDF'}
           </Button>
         </div>
       </div>
 
-      {/* Upload Messages */}
-      {uploadError && (
-        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-          <span>{uploadError}</span>
-        </div>
-      )}
-      {uploadSuccess && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{uploadSuccess}</span>
-        </div>
-      )}
+      {uploadSuccess && <div className="flex items-center gap-2 p-3 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-xs font-medium"><CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" /><span>{uploadSuccess}</span></div>}
+      {uploadError && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium"><AlertCircle className="w-4 h-4 text-rose-600 shrink-0" /><span>{uploadError}</span></div>}
 
-      {isLoading ? (
-        <div className="py-20 flex flex-col items-center justify-center space-y-4">
-          <LoadingSpinner size="lg" />
-          <p className="text-xs text-slate-500 font-medium">Loading uploaded materials...</p>
-        </div>
-      ) : documents.length === 0 ? (
-        <Card className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-4 max-w-2xl mx-auto my-8">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-200 flex items-center justify-center mx-auto shadow-sm">
-            <BookOpen className="w-8 h-8" />
-          </div>
+      {documents.length === 0 ? (
+        <Card className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#2563EB] border border-blue-200 flex items-center justify-center mx-auto shadow-sm"><FileText className="w-8 h-8" /></div>
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-900">No Study Materials Uploaded Yet</h2>
-            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              Upload your syllabus or lecture PDF to extract text, generate vector embeddings, and ground your AI Tutor in your real course content.
-            </p>
+            <h2 className="text-lg font-bold text-slate-900">No study materials uploaded yet</h2>
+            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">Upload a PDF to start asking grounded questions and generating practice quizzes from your own material.</p>
           </div>
-          <div className="pt-2">
-            <Button
-              variant="primary"
-              onClick={() => fileInputRef.current?.click()}
-              isLoading={isUploading}
-              leftIcon={<Upload className="w-4 h-4" />}
-            >
-              Upload Your First PDF
-            </Button>
-          </div>
+          <Button variant="primary" leftIcon={<Upload className="w-4 h-4" />} className="bg-[#2563EB] hover:bg-[#1d4ed8]" onClick={() => fileInputRef.current?.click()}>Upload Your First PDF</Button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Documents List (5 cols) */}
-          <div className="lg:col-span-5 p-5 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">
-                Your Documents ({documents.length})
-              </h3>
-              <button
-                onClick={loadDocuments}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
-                title="Refresh document list"
-              >
-                <RefreshCw className="w-3.5 h-3.5" /> Refresh
-              </button>
-            </div>
-
-            {/* Search filter */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search uploaded documents..."
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
-
-            {/* Document Items List */}
-            <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
-              {filteredDocs.map((doc) => {
-                const isSelected = doc.id === selectedDocId
-                return (
-                  <div
-                    key={doc.id}
-                    onClick={() => setSelectedDocId(doc.id)}
-                    className={`p-3.5 rounded-xl border text-xs space-y-1.5 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-2 border-indigo-600 bg-indigo-50/40 text-indigo-950 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 bg-white text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <FileText className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
-                        <span className="font-bold truncate">{doc.title}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {doc.chunks_count > 0 ? (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                            Indexed
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
-                            Incomplete
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteDocument(doc.id, e)}
-                          disabled={isDeleting === doc.id}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-100 transition-colors"
-                          title="Delete document"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1">
-                      <span>{doc.pages_count} Pages • {doc.chunks_count} Chunks</span>
-                      <span className="capitalize">{doc.access_level.toLowerCase()}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="lg:col-span-4 space-y-4">
+            <Card className="p-5 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-slate-900">Uploaded PDFs</h2>
+                <button onClick={loadDocuments} className="text-slate-400 hover:text-slate-700 p-1 rounded" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
+              </div>
+              <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+                {documents.map((doc) => (
+                  <button key={doc.id} type="button" onClick={() => setSelectedDocId(doc.id)}
+                    className={`w-full text-left p-3.5 rounded-xl border transition-all space-y-1 ${selectedDocId === doc.id ? 'bg-blue-50/50 border-[#2563EB] shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                    <p className="text-xs font-bold text-slate-900 truncate">{doc.title}</p>
+                    <p className="text-[11px] text-slate-500">{doc.pages_count} page{doc.pages_count === 1 ? '' : 's'} • {doc.chunks_count} indexed sections</p>
+                    <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded ${doc.chunks_count > 0 ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                      {doc.chunks_count > 0 ? 'Ready for AI' : 'Needs review'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">{documents.length} PDF(s) • {totalChunks} indexed sections available</div>
+            </Card>
           </div>
 
-          {/* Right Column: Selected Document Inspector (7 cols) */}
-          <div className="lg:col-span-7 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-5">
+          <div className="lg:col-span-8 space-y-4">
             {activeDoc ? (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  {activeDoc.chunks_count > 0 ? (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Grounded in MySQL Vector Store
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Ingestion Incomplete (0 Chunks)
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
-                      leftIcon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
-                      onClick={() => handleDeleteDocument(activeDoc.id)}
-                      isLoading={isDeleting === activeDoc.id}
-                    >
-                      Delete
-                    </Button>
-                    {activeDoc.chunks_count > 0 && (
-                      <Link to="/tutor">
-                        <Button size="sm" variant="outline" className="text-xs" leftIcon={<Bot className="w-3.5 h-3.5" />}>
-                          Ask Tutor About This Document
-                        </Button>
-                      </Link>
-                    )}
+              <Card className="p-6 md:p-8 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{activeDoc.title}</h2>
+                    <p className="text-xs text-slate-500">{activeDoc.pages_count} page{activeDoc.pages_count === 1 ? '' : 's'} processed</p>
                   </div>
+                  <button onClick={() => handleDelete(activeDoc.id)} className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50" title="Remove PDF"><Trash2 className="w-4 h-4" /></button>
                 </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
-                    <FileText className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1 overflow-hidden">
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug break-all">
-                      {activeDoc.title}
-                    </h2>
-                    <p className="text-xs text-slate-500">
-                      ID: <span className="font-mono">{activeDoc.id}</span>
-                      {activeDoc.created_at && ` • Uploaded ${new Date(activeDoc.created_at).toLocaleDateString()}`}
-                    </p>
-                  </div>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1"><span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Pages</span><div className="text-2xl font-black text-slate-900">{activeDoc.pages_count}</div></div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1"><span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</span><div className="text-lg font-black text-slate-900">{activeDoc.chunks_count > 0 ? 'Ready' : 'Check upload'}</div><p className="text-[10px] text-slate-400">{activeDoc.chunks_count > 0 ? 'Available for tutor & practice' : 'Re-upload if needed'}</p></div>
                 </div>
 
-                {/* 4 Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Pages Parsed</span>
-                    <div className="text-xl font-black text-slate-900">{activeDoc.pages_count}</div>
-                    <p className="text-[10px] text-slate-400">PDF pages processed</p>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Semantic Chunks</span>
-                    <div className="text-xl font-black text-slate-900">{activeDoc.chunks_count}</div>
-                    <p className="text-[10px] text-slate-400">Indexed for RAG</p>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Privacy Mode</span>
-                    <div className="text-xl font-black text-slate-900 capitalize">{activeDoc.access_level.toLowerCase()}</div>
-                    <p className="text-[10px] text-slate-400">Restricted to your account</p>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Embedding Model</span>
-                    <div className="text-xl font-black text-slate-900">768-dim</div>
-                    <p className="text-[10px] text-slate-400">Cosine index active</p>
-                  </div>
+                <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
+                  <Link to="/tutor"><Button variant="primary" size="sm" className="bg-[#2563EB] hover:bg-[#1d4ed8]" leftIcon={<Bot className="w-4 h-4" />}>Ask AI Tutor</Button></Link>
+                  <Link to="/practice"><Button variant="outline" size="sm" leftIcon={<FileText className="w-4 h-4" />}>Generate Practice</Button></Link>
                 </div>
-
-                {activeDoc.chunks_count > 0 ? (
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-slate-800">
-                      <FileCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Evidence-Grounded Tutoring Ready</span>
-                    </div>
-                    <p className="text-slate-600 leading-relaxed text-[11px]">
-                      This document is ingested, chunked, and embedded. When you ask conceptual questions in the AI Tutor or take diagnostic drills, the retrieval engine queries these semantic chunks and cites exact page numbers.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-amber-900">
-                      <AlertTriangle className="w-4 h-4 text-amber-600" />
-                      <span>Document Incomplete (0 Chunks Indexed)</span>
-                    </div>
-                    <p className="text-amber-800 leading-relaxed text-[11px]">
-                      This document has 0 semantic chunks indexed (caused by a previous upload interruption or Gemini quota limit). Delete this entry and re-upload the document so the AI Tutor can access its contents.
-                    </p>
-                  </div>
-                )}
-              </>
+              </Card>
             ) : (
-              <div className="py-12 text-center text-slate-400 text-xs">
-                Select a document from the left list to view details.
-              </div>
+              <EmptyState icon={<FileText className="w-6 h-6" />} title="Select a PDF" description="Choose an uploaded PDF to view its details and use it for tutoring or practice." />
             )}
           </div>
         </div>
       )}
     </div>
   )
-}
+}

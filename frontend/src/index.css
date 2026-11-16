@@ -3,12 +3,18 @@
 @layer base {
   :root {
     --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    --ck-navy: #14213D;
+    --ck-blue: #2563EB;
+    --ck-teal: #14B8A6;
+    --ck-bg: #F8FAFC;
+    --ck-slate: #E2E8F0;
+    --ck-amber: #F59E0B;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #F8FAFC;
-    color: #0F172A;
+    background-color: var(--ck-bg);
+    color: #14213D;
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;

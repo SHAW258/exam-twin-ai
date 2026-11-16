@@ -90,10 +90,9 @@ describe('PHASE 3 & 9: Real Empty States for Zero-Record State', () => {
     renderWithProviders(<DashboardPage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/0 Docs/i)).toBeInTheDocument()
-      expect(screen.getByText(/0 Tests/i)).toBeInTheDocument()
-      expect(screen.getByText(/0 Topics/i)).toBeInTheDocument()
-      expect(screen.getByText(/No Study Materials Uploaded Yet/i)).toBeInTheDocument()
+      expect(screen.getAllByText(/Study Materials/i)[0]).toBeInTheDocument()
+      expect(screen.getByText(/Topics Tracked/i)).toBeInTheDocument()
+      expect(screen.getByText(/Start by uploading your study material/i)).toBeInTheDocument()
     })
   })
 

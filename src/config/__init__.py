@@ -1,4 +1,4 @@
-"""Configuration module for ExamTwin AI core."""
+"""Configuration module for CodeKnot AI core."""
 
 from src.config.settings import Settings, get_settings
 

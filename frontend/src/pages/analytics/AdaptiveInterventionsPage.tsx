@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles, Play, Dna, ArrowLeft } from 'lucide-react'
+import { Sparkles, Play, ArrowLeft } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
@@ -34,7 +34,7 @@ export const AdaptiveInterventionsPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="text-xs text-slate-500 mb-1">
-            ExamTwin / Student Suite / Adaptive Engine / Pedagogical Interventions
+            CodeKnot / Student Suite / Adaptive Engine / Pedagogical Interventions
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Adaptive Learning Recommendations
@@ -59,7 +59,7 @@ export const AdaptiveInterventionsPage: React.FC = () => {
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-slate-900">No Adaptive Interventions Yet</h2>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              As you take assessments and complete practice sessions, ExamTwin's multi-factor adaptive algorithm computes priority scores based on error recurrence, frequency, and recency to recommend targeted pedagogical interventions.
+              As you take assessments and complete practice sessions, CodeKnot's multi-factor adaptive algorithm computes priority scores based on error recurrence, frequency, and recency to recommend targeted pedagogical interventions.
             </p>
           </div>
           <div className="pt-2">

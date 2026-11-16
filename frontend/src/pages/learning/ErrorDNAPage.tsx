@@ -2,21 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Dna,
-  AlertTriangle,
-  TrendingDown,
-  CheckCircle2,
-  Sparkles,
   ArrowRight,
-  BookOpen,
   Filter,
   Flame,
   Play,
-  RotateCcw,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { Badge } from '../../components/ui/Badge'
-import { LoadingSpinner, EmptyState } from '../../components/ui/LoadingAndEmpty'
+import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { api } from '../../api/client'
 import type { ErrorDNASummary } from '../../types/api'
 
@@ -55,11 +48,11 @@ export const ErrorDNAPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="text-xs text-slate-500 mb-1">
-            ExamTwin / Student Suite / Cognitive Diagnostics / Error DNA Profiler
+            CodeKnot / Learning Patterns
           </div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Error DNA Synthesis
+              Learning Patterns & Mistakes
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 flex items-center gap-1">
               <Dna className="w-3.5 h-3.5" /> Cognitive Profiler
@@ -122,7 +115,7 @@ export const ErrorDNAPage: React.FC = () => {
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-slate-900">No Cognitive Errors Diagnosed Yet</h2>
             <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-              Complete practice drills, quizzes, or chat with the AI Tutor. ExamTwin's supervised ML error classifier will evaluate your answers, detect recurring reasoning traps, and build your personalized Error DNA profile.
+              Complete practice drills, quizzes, or chat with the AI Tutor. CodeKnot's supervised ML error classifier will evaluate your answers, detect recurring reasoning traps, and build your personalized Error DNA profile.
             </p>
           </div>
           <div className="pt-2">

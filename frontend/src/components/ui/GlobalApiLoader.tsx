@@ -49,7 +49,7 @@ export const GlobalApiLoader: React.FC = () => {
             <span>
               {isColdStart
                 ? `Waking up cloud server (cold start takes ~30s)... [${elapsedSeconds}s]`
-                : 'Connecting to ExamTwin AI server...'}
+                : 'Connecting to CodeKnot AI server...'}
             </span>
             {isColdStart && (
               <Server className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1" />

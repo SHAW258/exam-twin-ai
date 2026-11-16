@@ -1,8 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import {
-  CheckCircle2,
-  BookOpen,
   ArrowLeft,
   History,
   Play,
@@ -17,7 +15,7 @@ export const AnswerReviewPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="text-xs text-slate-500 mb-1">
-            ExamTwin / Student Suite / Assessment Audit / Answer Review
+            CodeKnot / Student Suite / Assessment Audit / Answer Review
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Cognitive Post-Mortem & Grounded Citations

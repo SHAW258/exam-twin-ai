@@ -1,4 +1,4 @@
-# ExamTwin Frontend API Contract & Integration Guide
+# CodeKnot Frontend API Contract & Integration Guide
 
 > **Target Frontend**: React + TypeScript Single-Page Application (SPA)
 > **UI/UX Design Context**: Google Stitch Design System
@@ -10,7 +10,7 @@
 
 ## 1. Overview & Architectural Principles
 
-ExamTwin is engineered **Web-Application First**. The backend delivers a typed, contract-verified RESTful API providing evidence-grounded AI tutoring, machine-learning misconception diagnosis, adaptive pedagogical intervention, and empirical learning gain measurement.
+CodeKnot is engineered **Web-Application First**. The backend delivers a typed, contract-verified RESTful API providing evidence-grounded AI tutoring, machine-learning misconception diagnosis, adaptive pedagogical intervention, and empirical learning gain measurement.
 
 ### Architectural Principles for Frontend Integration
 1. **Contract Immutability**: All request and response structures documented here match the verified Pydantic models in `src/api/schemas.py`. No unsupported or phantom fields are emitted.

@@ -1,4 +1,4 @@
-"""Retriever module for semantic context search in ExamTwin RAG.
+"""Retriever module for semantic context search in CodeKnot RAG.
 
 Combines the EmbeddingService and abstract VectorStore to retrieve ranked,
 authorized course/user document chunks matching student questions.

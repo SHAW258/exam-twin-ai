@@ -6,8 +6,6 @@ import {
   Mail,
   AlertCircle,
   ShieldCheck,
-  Building2,
-  GraduationCap,
   ArrowLeft,
   CornerDownLeft,
   Eye,
@@ -54,11 +52,11 @@ export const SignInPage: React.FC = () => {
       {/* Top Header */}
       <div className="max-w-4xl mx-auto w-full flex items-center justify-between gap-4 mb-2">
         <Link to="/" className="inline-flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#4338CA] flex items-center justify-center text-white shadow-xs">
+          <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-xs">
             <BookOpen className="w-4 h-4" />
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-slate-900">
-            Exam<span className="text-[#4338CA]">Twin</span>
+          <span className="font-extrabold text-xl tracking-tight text-[#14213D]">
+            Code<span className="text-[#2563EB]">Knot</span>
           </span>
         </Link>
 
@@ -75,18 +73,18 @@ export const SignInPage: React.FC = () => {
         <div className="bg-white p-7 sm:p-9 shadow-xl shadow-slate-200/60 border border-slate-200 rounded-2xl space-y-5">
           {/* Top Center Icon & Pill */}
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-[#4338CA] text-white flex items-center justify-center mx-auto shadow-md shadow-indigo-200 mb-2">
+            <div className="w-12 h-12 rounded-2xl bg-[#2563EB] text-white flex items-center justify-center mx-auto shadow-md shadow-blue-200 mb-2">
               <Sparkles className="w-6 h-6" />
             </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-              ExamTwin AI Study Engine
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-[#2563EB] border border-blue-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB]" />
+              CodeKnot Learning Platform
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-              Welcome back to your Study Twin
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#14213D]">
+              Welcome back to CodeKnot
             </h1>
             <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Sign in to access your indexed course materials, tutor conversations, and Error DNA profile.
+              Sign in to access your study materials, tutor chats, practice, and progress.
             </p>
           </div>
 
@@ -173,7 +171,7 @@ export const SignInPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3 bg-[#4338CA] hover:bg-[#3730A3] text-white rounded-xl shadow-md shadow-indigo-200 text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-70"
+              className="w-full py-3 bg-[#2563EB] hover:bg-[#1d4ed8] text-white rounded-xl shadow-md shadow-blue-200 text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-70"
             >
               <span>{isSubmitting ? 'Signing In...' : 'Sign In to Workspace'}</span>
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-indigo-900/60 text-indigo-100 font-mono">
@@ -185,8 +183,8 @@ export const SignInPage: React.FC = () => {
           {/* Sign Up Link Container */}
           <div className="p-3 rounded-xl bg-slate-50 text-center border border-slate-100">
             <p className="text-xs text-slate-600">
-              Don't have an ExamTwin account yet?{' '}
-              <Link to="/register" className="font-bold text-[#4338CA] hover:underline">
+              Don't have a CodeKnot account yet?{' '}
+              <Link to="/register" className="font-bold text-[#2563EB] hover:underline">
                 Create your account free &rarr;
               </Link>
             </p>
@@ -196,7 +194,7 @@ export const SignInPage: React.FC = () => {
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 flex items-start gap-2.5 leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-800">Academic Integrity & Privacy:</span> Protected by secure password hashing and encrypted token authentication. Your study notes and diagnostic states remain private to your account.
+              <span className="font-bold text-slate-800">Privacy & security:</span> Your account and study materials are protected with secure sign-in. Your uploaded content stays linked to your account.
             </div>
           </div>
         </div>
@@ -204,7 +202,7 @@ export const SignInPage: React.FC = () => {
 
       {/* Bottom Legal Links */}
       <p className="text-center text-xs text-slate-400 py-2">
-        © 2025 ExamTwin • <Link to="/help" className="hover:underline">Help & Docs</Link>
+        © 2026 CodeKnot • <Link to="/help" className="hover:underline">Help & Guides</Link>
       </p>
     </div>
   )

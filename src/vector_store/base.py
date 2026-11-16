@@ -1,4 +1,4 @@
-"""VectorStore abstract interface for ExamTwin RAG retrieval.
+"""VectorStore abstract interface for CodeKnot RAG retrieval.
 
 Provides a database-agnostic interface enabling future substitution between
 MySQL (application-side similarity) and PostgreSQL + pgvector (native vector similarity).

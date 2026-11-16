@@ -1,4 +1,4 @@
-"""Phase 8: Retest and Learning Measurement Engine for ExamTwin.
+"""Phase 8: Retest and Learning Measurement Engine for CodeKnot.
 
 Provides assessment lifecycle tracking, score normalization, comparability validation,
 normalized learning gain calculation, and learner-state integration.

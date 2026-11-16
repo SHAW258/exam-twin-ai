@@ -4,13 +4,10 @@ import {
   Bot,
   Send,
   BookOpen,
-  Sparkles,
   ShieldCheck,
   Maximize2,
   AlertCircle,
   Trash2,
-  Wifi,
-  WifiOff,
   CheckCircle2,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
@@ -31,7 +28,7 @@ interface ChatMessage {
 const INITIAL_WELCOME: ChatMessage = {
   id: 'msg-init',
   sender: 'tutor',
-  text: 'Hello! I am your ExamTwin AI Study Twin. Every answer I provide is grounded in your uploaded course materials.\n\nAsk any conceptual question, request a Socratic hint, or practice with targeted drill questions.',
+  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are available, I use them to provide grounded answers.\n\nAsk a question, request a Socratic hint, or start a practice drill.',
   grounded: true,
   citations: [],
   timestamp: 'Just now',
@@ -41,7 +38,7 @@ export const AITutorWorkspacePage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_WELCOME])
   const [question, setQuestion] = useState('')
   const [mode, setMode] = useState<TutorMode>('qa')
-  const [topic, setTopic] = useState('')
+  const [topic, _setTopic] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
@@ -112,7 +109,7 @@ export const AITutorWorkspacePage: React.FC = () => {
         ws.onopen = () => {
           if (!isMounted) return
           setWsStatus('connected')
-          console.log('[Tutor WS] Connected to ExamTwin AI live stream')
+          console.log('[Tutor WS] Connected to CodeKnot live stream')
 
           // Start heartbeat ping every 25s to prevent Cloudflare/Render idle timeouts
           if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
@@ -203,7 +200,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           console.warn('[Tutor WS] Connection notice:', err)
           setWsStatus('disconnected')
         }
-      } catch (err) {
+      } catch {
         setWsStatus('disconnected')
       }
     }
@@ -499,7 +496,7 @@ export const AITutorWorkspacePage: React.FC = () => {
               isLoading={isLoading}
               rightIcon={<Send className="w-4 h-4" />}
             >
-              Ask Twin
+              Ask Tutor
             </Button>
           </form>
         </div>

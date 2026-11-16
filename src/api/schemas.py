@@ -1,4 +1,4 @@
-"""Pydantic request and response schemas for ExamTwin Phase 9 Web API layer.
+"""Pydantic request and response schemas for CodeKnot Phase 9 Web API layer.
 
 Defines strict type contracts for the future React + TypeScript web frontend,
 preventing direct ORM leakage and standardizing error/data formats.
@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 # -----------------------------------------------------------------------------
 
 class StudentRegisterRequest(BaseModel):
-    """Payload for registering a new student account."""
+    """Payload for registering a new student account (legacy direct registration)."""
 
     username: str = Field(
         ...,
@@ -30,12 +30,12 @@ class StudentRegisterRequest(BaseModel):
     )
     email: Optional[str] = Field(
         default=None,
-        description="Optional student email address.",
+        description="Student email address.",
     )
     full_name: Optional[str] = Field(
         default=None,
         max_length=128,
-        description="Optional student display name.",
+        description="Student display name.",
     )
 
     @field_validator("username")
@@ -45,6 +45,64 @@ class StudentRegisterRequest(BaseModel):
         if not clean:
             raise ValueError("Username cannot be empty or whitespace.")
         return clean
+
+
+class RegisterOTPRequest(BaseModel):
+    """Request OTP for email-verified student registration."""
+
+    username: str = Field(..., min_length=3, max_length=64)
+    password: str = Field(..., min_length=8, max_length=128)
+    email: str = Field(..., min_length=5, max_length=255)
+    full_name: Optional[str] = Field(default=None, max_length=128)
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        clean = v.strip()
+        if not clean:
+            raise ValueError("Username cannot be empty or whitespace.")
+        return clean
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        clean = v.strip().lower()
+        if "@" not in clean or "." not in clean.split("@")[-1]:
+            raise ValueError("A valid email address is required.")
+        return clean
+
+
+class VerifyRegisterOTPRequest(BaseModel):
+    """Verify OTP and complete student registration."""
+
+    email: str = Field(..., min_length=5, max_length=255)
+    otp_code: str = Field(..., min_length=4, max_length=12)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class ResendRegisterOTPRequest(BaseModel):
+    """Request resend of registration OTP."""
+
+    email: str = Field(..., min_length=5, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+class OTPRequestResponse(BaseModel):
+    """Response for OTP request/resend actions."""
+
+    message: str
+    email: str
+    expires_in_minutes: int
+    resend_cooldown_seconds: int
+    dev_otp_code: Optional[str] = None
 
 
 class StudentLoginRequest(BaseModel):
@@ -256,3 +314,25 @@ class MeasurementResponse(BaseModel):
     is_verified: bool
     summary_explanation: str
     measured_at: Optional[str] = None
+
+
+# -----------------------------------------------------------------------------
+# Support Ticket Schemas
+# -----------------------------------------------------------------------------
+
+class SupportTicketCreateRequest(BaseModel):
+    category: str = Field(default="General Support", max_length=64)
+    subject: str = Field(..., min_length=3, max_length=255)
+    message: str = Field(..., min_length=5, max_length=5000)
+
+
+class SupportTicketResponse(BaseModel):
+    id: str
+    student_id: str
+    category: str
+    subject: str
+    message: str
+    status: str
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+

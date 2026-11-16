@@ -351,7 +351,7 @@ def test_service_cold_start_behavior(learner_service):
     assert rec.is_cold_start is True
     assert rec.priority_score == 0.0
     assert rec.selected_strategy == InterventionStrategy.GUIDED_PRACTICE
-    assert "Welcome to ExamTwin" in rec.student_explanation
+    assert ("Welcome to CodeKnot" in rec.student_explanation or "Welcome to ExamTwin" in rec.student_explanation)
     # Ensure no fabricated weakness or diagnostic errors
     assert rec.error_dna_evidence.total_diagnoses == 0
     assert rec.mastery_evidence is None

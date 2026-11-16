@@ -27,9 +27,7 @@ import { AnswerReviewPage } from './pages/assessment/AnswerReviewPage'
 
 // Learning Analytics Pages
 import { LearningAnalyticsPage } from './pages/analytics/LearningAnalyticsPage'
-import { PrePostComparisonPage } from './pages/analytics/PrePostComparisonPage'
 import { TopicMasteryPage } from './pages/analytics/TopicMasteryPage'
-import { AdaptiveInterventionsPage } from './pages/analytics/AdaptiveInterventionsPage'
 
 // Account & Support Pages
 import { ProfilePage } from './pages/account/ProfilePage'
@@ -83,13 +81,13 @@ export const App: React.FC = () => {
 
             {/* Group D: Learning Analytics */}
             <Route path="/analytics" element={<LearningAnalyticsPage />} />
-            <Route path="/analytics/comparison" element={<PrePostComparisonPage />} />
+            <Route path="/analytics/comparison" element={<Navigate to="/assessments" replace />} />
             <Route path="/analytics/mastery" element={<TopicMasteryPage />} />
-            <Route path="/analytics/interventions" element={<AdaptiveInterventionsPage />} />
+            <Route path="/analytics/interventions" element={<Navigate to="/analytics" replace />} />
 
             {/* Group E: Account & Support */}
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/settings" element={<ProfilePage />} />
+            <Route path="/settings" element={<Navigate to="/profile" replace />} />
             <Route path="/help" element={<HelpPage />} />
           </Route>
 

@@ -158,7 +158,7 @@ if __name__ == "__main__":
     from src.error_diagnosis.training import load_model_artifacts, run_training_pipeline
 
     print("=" * 70)
-    print("ExamTwin ML Error Diagnosis Baseline — Evaluation Report")
+    print("CodeKnot ML Error Diagnosis Baseline — Evaluation Report")
     print("=" * 70)
 
     try:

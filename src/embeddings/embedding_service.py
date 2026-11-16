@@ -1,8 +1,8 @@
-"""Pretrained embedding service abstraction for ExamTwin semantic retrieval.
+"""Pretrained embedding service abstraction for CodeKnot semantic retrieval.
 
 NOTE ON ML POSITION:
 This service integrates pretrained embedding models (such as Google text-embedding-004)
-for semantic vector representation. ExamTwin does not train embedding representations
+for semantic vector representation. CodeKnot does not train embedding representations
 from scratch.
 """
 

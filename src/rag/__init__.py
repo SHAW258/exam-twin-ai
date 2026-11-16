@@ -1,4 +1,4 @@
-"""Course-Grounded Retrieval-Augmented Generation (RAG) module for ExamTwin."""
+"""Course-Grounded Retrieval-Augmented Generation (RAG) module for CodeKnot."""
 
 from src.rag.prompt_builder import (
     PromptBuilder,

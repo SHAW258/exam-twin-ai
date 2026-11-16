@@ -1,4 +1,4 @@
-# ExamTwin — ML & Generative AI Core
+# CodeKnot — ML & Generative AI Core
 
 > **Web-Based Hybrid AI Tutor for Error-Aware Personalized Exam Preparation**
 > Academic MCA Project Core Architecture
@@ -7,7 +7,7 @@
 
 ## 1. Project Overview
 
-ExamTwin is an academic web application combining:
+CodeKnot is an academic web application combining:
 1. **Course-Grounded RAG** (Retrieval-Augmented Generation) backed by relational & vector storage
 2. **LLM Generation** (Google Gemini) for explanations, hints, practice, and retests
 3. **Structured Error Diagnosis** combining deterministic heuristics, a supervised ML classifier, and fallback LLM reasoning
@@ -15,7 +15,7 @@ ExamTwin is an academic web application combining:
 5. **Deterministic Adaptive Intervention** prioritizing topics and misconceptions based on frequency, recency, recurrence, and difficulty
 6. **Retesting & Learning Measurement** to quantitatively verify knowledge improvement
 
-> **Note on ML/AI Positioning**: ExamTwin is **not** a large language model trained from scratch. It integrates pretrained embedding models (Google `text-embedding-004`), cloud LLMs (Gemini `gemini-2.5-flash`), vector retrieval, a supervised baseline error classifier, and deterministic educational logic.
+> **Note on ML/AI Positioning**: CodeKnot is **not** a large language model trained from scratch. It integrates pretrained embedding models (Google `text-embedding-004`), cloud LLMs (Gemini `gemini-2.5-flash`), vector retrieval, a supervised baseline error classifier, and deterministic educational logic.
 
 ---
 
@@ -578,7 +578,7 @@ print(f"Student Explanation: {rec.student_explanation}")
 
 ## 8. Security Architecture & Hardening
 
-ExamTwin incorporates defense-in-depth security controls across document ingestion, persistence, and student identity boundaries.
+CodeKnot incorporates defense-in-depth security controls across document ingestion, persistence, and student identity boundaries.
 
 ### 8.1 PDF Ingestion Security Controls
 
@@ -591,7 +591,7 @@ To mitigate Denial of Service (DoS) and memory exhaustion vectors from malformed
 
 ### 8.2 MySQL Least Privilege & User Separation
 
-In production and multi-tenant environments, root database users must never be utilized by the application runtime. ExamTwin establishes strict separation of duties between DML application execution and DDL administrative schema migrations.
+In production and multi-tenant environments, root database users must never be utilized by the application runtime. CodeKnot establishes strict separation of duties between DML application execution and DDL administrative schema migrations.
 
 #### 1. Runtime Application User (DML Only)
 The daily application runtime needs only Data Manipulation Language (DML) permissions to query and modify records:
@@ -625,7 +625,7 @@ The automated test suite runs strictly on isolated in-memory SQLite instances (`
 
 ### 8.3 Student Data Authorization Boundaries
 
-ExamTwin enforces strict tenant-like boundary separation between students to prevent Insecure Direct Object References (IDOR):
+CodeKnot enforces strict tenant-like boundary separation between students to prevent Insecure Direct Object References (IDOR):
 
 1. **Trusted Principal vs. Request Identity**:
    - Request-supplied student IDs (`external_student_id`) in request bodies or query parameters are considered **untrusted inputs**.
@@ -641,7 +641,7 @@ ExamTwin enforces strict tenant-like boundary separation between students to pre
 
 ## 9. Phase 8 — Retest & Learning Measurement Engine
 
-ExamTwin Phase 8 implements an empirical measurement engine to quantitatively evaluate whether a student's performance improves following a personalized adaptive learning intervention.
+CodeKnot Phase 8 implements an empirical measurement engine to quantitatively evaluate whether a student's performance improves following a personalized adaptive learning intervention.
 
 ### 9.1 Purpose & Objective
 
@@ -701,7 +701,7 @@ To guarantee scientific and pedagogical validity, paired assessments must satisf
 
 ### 10.1 Web-First Product Architecture
 
-ExamTwin is built **Web-First**. The backend exposes a high-performance RESTful API via FastAPI, designed to serve a future modern React + TypeScript single-page web application.
+CodeKnot is built **Web-First**. The backend exposes a high-performance RESTful API via FastAPI, designed to serve a future modern React + TypeScript single-page web application.
 
 ```text
 React + TypeScript Frontend (SPA)
@@ -731,7 +731,7 @@ Create or update your `.env` file with the Phase 9 configuration parameters:
 
 ```bash
 # Database Configuration (Production uses MySQL; tests isolate with SQLite)
-DATABASE_URL=mysql+pymysql://examtwin_user:examtwin_pass@localhost:3306/examtwin_db
+DATABASE_URL=mysql+pymysql://codeknot_user:codeknot_pass@localhost:3306/codeknot_db
 
 # Security & JWT Authentication
 JWT_SECRET_KEY=change-this-in-production-to-a-secure-random-32-byte-secret

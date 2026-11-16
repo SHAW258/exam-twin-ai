@@ -1,4 +1,4 @@
-# ExamTwin Web API Contract (Phase 9)
+# CodeKnot Web API Contract (Phase 9)
 
 > **Specification for Future React & TypeScript Web Frontend Integration**
 > Version: 1.0.0
@@ -8,7 +8,7 @@
 
 ## 1. Overview & Architecture
 
-ExamTwin exposes a RESTful HTTP service layer built with FastAPI, enabling the future React + TypeScript single-page application (SPA) to seamlessly communicate with the underlying AI/ML and educational engines.
+CodeKnot exposes a RESTful HTTP service layer built with FastAPI, enabling the future React + TypeScript single-page application (SPA) to seamlessly communicate with the underlying AI/ML and educational engines.
 
 ### Key Characteristics
 - **Base URL Prefix**: `/api/v1`

@@ -1,4 +1,4 @@
-"""Gemini LLM Service abstraction and client interface for ExamTwin.
+"""Gemini LLM Service abstraction and client interface for CodeKnot.
 
 Encapsulates all interaction with the Google GenAI SDK, providing an isolated,
 testable interface with mock support for offline unit testing.
@@ -119,7 +119,7 @@ class MockLLMService(BaseLLMService):
             return (
                 f"Based on your uploaded course material ({doc_name}, Page {page_num}):\n\n"
                 f"{cleaned_excerpt}\n\n"
-                f"(Answer grounded in retrieved document excerpts via ExamTwin offline engine.)"
+                f"(Answer grounded in retrieved document excerpts via CodeKnot offline engine.)"
             )
 
         # Handle general questions when offline or when Gemini quota is exhausted
@@ -137,7 +137,7 @@ class MockLLMService(BaseLLMService):
                 "1. **Confidentiality:** Ensuring sensitive data is accessible only to authorized personnel and processes (implemented via AES/RSA encryption, access control lists, and MFA).\n"
                 "2. **Integrity:** Maintaining the trustworthiness, consistency, and accuracy of data over its entire lifecycle (ensured via cryptographic hashing like SHA-256 and digital signatures).\n"
                 "3. **Availability:** Guaranteeing reliable, timely access to information, networks, and resources by authorized users whenever needed (achieved via redundant hardware, DDoS protection, and backups).\n\n"
-                "*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+                "*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
             )
         elif "cyber" in low_q or "security" in low_q:
             return (
@@ -148,7 +148,7 @@ class MockLLMService(BaseLLMService):
                 "* **Application Security:** Preventing vulnerabilities such as SQL injection, buffer overflows, and cross-site scripting (XSS).\n"
                 "* **Information Security:** Data encryption, privacy policies, and compliance (e.g., IT Act, GDPR).\n"
                 "* **Operational Security:** Incident response, risk assessment, digital forensics, and disaster recovery.\n\n"
-                "*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+                "*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
             )
         elif "python" in low_q or "oop" in low_q:
             return (
@@ -158,7 +158,7 @@ class MockLLMService(BaseLLMService):
                 "* **Encapsulation:** Bundling data with methods and restricting direct access to internal components.\n"
                 "* **Inheritance:** Enabling a child class to inherit attributes and methods from a parent class.\n"
                 "* **Polymorphism:** Allowing different classes to be treated as instances of the same general class through common interfaces.\n\n"
-                "*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+                "*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
             )
         elif user_q:
             return (
@@ -166,7 +166,7 @@ class MockLLMService(BaseLLMService):
                 f"In university coursework, mastering this concept requires understanding its formal definition, "
                 f"underlying architecture, and practical problem-solving applications. "
                 f"To ground this answer specifically in your textbook or lecture slides, you can upload course notes in the Study Materials tab.\n\n"
-                f"*(Answer provided by ExamTwin offline academic engine while Gemini API daily quota is resetting.)*"
+                f"*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
             )
 
         return self.default_response

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { StudentProfile, StudentRegisterPayload, StudentLoginPayload } from '../types/api'
-import { api, getAuthToken, setAuthToken, clearAuthToken } from '../api/client'
+import { api, getAuthToken, clearAuthToken } from '../api/client'
 
 interface AuthContextType {
   student: StudentProfile | null
@@ -23,6 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshStudent = useCallback(async () => {
     const currentToken = getAuthToken()
     if (!currentToken) {
+      setTokenState(null)
       setStudent(null)
       setIsLoading(false)
       return
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const profile = await api.auth.getMe()
+      setTokenState(currentToken)
       setStudent(profile)
     } catch (err) {
       console.warn('Failed to rehydrate student profile:', err)
@@ -61,9 +63,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (payload: StudentRegisterPayload) => {
     setIsLoading(true)
     try {
-      await api.auth.register(payload)
-      // auto-login upon registration
-      await login({ username: payload.username, password: payload.password })
+      const res = await api.auth.register(payload)
+      if (res && (res as any).access_token) {
+        setTokenState((res as any).access_token)
+        const profile = await api.auth.getMe()
+        setStudent(profile)
+      } else {
+        await login({ username: payload.username, password: payload.password })
+      }
     } finally {
       setIsLoading(false)
     }

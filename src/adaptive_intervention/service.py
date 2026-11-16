@@ -154,7 +154,7 @@ class AdaptiveInterventionService:
                     "Introductory guided practice recommended to establish initial learner state."
                 ),
                 student_explanation=(
-                    f"Welcome to ExamTwin! No previous study activity was found. "
+                    f"Welcome to CodeKnot! No previous study activity was found. "
                     f"Let's begin with introductory practice in {default_topic} to start your learning profile."
                 ),
                 is_uncertain=False,

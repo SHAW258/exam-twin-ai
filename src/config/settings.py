@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Central configuration for ExamTwin AI/ML core services.
+    """Central configuration for CodeKnot AI/ML core services.
 
     Values are loaded from environment variables or a local `.env` file.
     Sensible defaults are provided for local development.
@@ -142,6 +142,16 @@ class Settings(BaseSettings):
         default=60 * 24,  # 24 hours
         description="JWT token validity duration in minutes.",
     )
+    OTP_EXPIRE_MINUTES: int = Field(default=10, ge=1, description="Email OTP validity in minutes.")
+    OTP_RESEND_COOLDOWN_SECONDS: int = Field(default=60, ge=10, description="Minimum seconds between OTP resend requests.")
+    OTP_MAX_ATTEMPTS: int = Field(default=5, ge=1, description="Maximum invalid OTP verification attempts before lockout/reset.")
+    SMTP_HOST: Optional[str] = Field(default=None, description="SMTP server host for sending verification emails.")
+    SMTP_PORT: int = Field(default=587, description="SMTP server port.")
+    SMTP_USERNAME: Optional[str] = Field(default=None, description="SMTP username.")
+    SMTP_PASSWORD: Optional[SecretStr] = Field(default=None, description="SMTP password or app password.")
+    SMTP_FROM_EMAIL: Optional[str] = Field(default=None, description="From email address for verification emails.")
+    SMTP_USE_TLS: bool = Field(default=True, description="Use STARTTLS for SMTP.")
+    EXPOSE_DEV_OTP: bool = Field(default=True, description="Expose OTP in API response when SMTP is not configured (development convenience).")
     CORS_ORIGINS: Any = Field(
         default_factory=lambda: [
             "http://localhost:3000",

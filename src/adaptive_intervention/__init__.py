@@ -1,4 +1,4 @@
-"""Adaptive Intervention Engine module for ExamTwin.
+"""Adaptive Intervention Engine module for CodeKnot.
 
 Coordinates topic prioritization, pedagogical strategy selection,
 and course-grounded RAG remediation.

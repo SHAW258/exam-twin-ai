@@ -1,5 +1,5 @@
 import React from 'react'
-import { Menu, Search, Bell, BookOpen } from 'lucide-react'
+import { Menu, Search, Bell } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { Link, useLocation } from 'react-router-dom'
 
@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       case '/tutor/focus':
         return 'Distraction-Free Tutor'
       case '/error-dna':
-        return 'Error DNA & Misconceptions'
+        return 'Learning Patterns & Mistakes'
       case '/materials':
         return 'Study Materials Library'
       case '/practice':
@@ -32,20 +32,16 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         return 'Assessment History'
       case '/analytics':
         return 'Learning Analytics'
-      case '/analytics/comparison':
-        return 'Pre/Post-Test Gain Comparison'
       case '/analytics/mastery':
-        return 'Topic Mastery Breakdown'
-      case '/analytics/interventions':
-        return 'Adaptive Pedagogical Interventions'
+        return 'Topic Mastery'
       case '/profile':
-        return 'Student Profile'
+        return 'Profile & Support'
       case '/settings':
-        return 'Account Settings'
+        return 'Profile & Support'
       case '/help':
-        return 'Help & Documentation'
+        return 'Help & Guides'
       default:
-        return 'ExamTwin AI'
+        return 'CodeKnot'
     }
   }
 
@@ -63,9 +59,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
         {/* Breadcrumb / Title */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-slate-400 hidden sm:inline">ExamTwin</span>
+          <span className="text-xs font-medium text-slate-400 hidden sm:inline">CodeKnot</span>
           <span className="text-slate-300 hidden sm:inline">/</span>
-          <h2 className="text-base font-semibold text-slate-900">{getPageTitle(location.pathname)}</h2>
+          <h2 className="text-base font-semibold text-[#14213D]">{getPageTitle(location.pathname)}</h2>
         </div>
       </div>
 
@@ -81,11 +77,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
       {/* Right Quick Actions */}
       <div className="flex items-center gap-3">
-        {/* Quick status pill */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/50">
-          <BookOpen className="w-3.5 h-3.5" />
-          <span>Active Prep</span>
-        </div>
 
         {/* Notifications */}
         <button

@@ -1,4 +1,4 @@
-"""Document Ingestion, Cleaning, Chunking, and Storage Pipeline for ExamTwin."""
+"""Document Ingestion, Cleaning, Chunking, and Storage Pipeline for CodeKnot."""
 
 from src.ingestion.pdf_loader import (
     DEFAULT_MAX_PDF_SIZE_BYTES,

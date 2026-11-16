@@ -1,4 +1,4 @@
-"""ExamTwin Phase 9 Web API Package."""
+"""CodeKnot Phase 9 Web API Package."""
 
 from src.api.app import app, create_app
 from src.api.auth import (

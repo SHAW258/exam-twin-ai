@@ -9,11 +9,9 @@ import {
   FileQuestion,
   History,
   BarChart3,
-  GitCompare,
   CheckCircle2,
   Sparkles,
   User,
-  Settings,
   HelpCircle,
   LogOut,
   GraduationCap,
@@ -34,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
         { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { name: 'AI Tutor Chat', path: '/tutor', icon: Bot },
         { name: 'Distraction-Free Tutor', path: '/tutor/focus', icon: Maximize2 },
-        { name: 'Error DNA', path: '/error-dna', icon: Dna },
+        { name: 'Learning Patterns', path: '/error-dna', icon: Dna },
         { name: 'Study Materials', path: '/materials', icon: BookOpen },
       ],
     },
@@ -50,17 +48,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
       title: 'LEARNING ANALYTICS',
       items: [
         { name: 'Analytics Overview', path: '/analytics', icon: BarChart3 },
-        { name: 'Pre/Post Comparison', path: '/analytics/comparison', icon: GitCompare },
         { name: 'Topic Mastery', path: '/analytics/mastery', icon: CheckCircle2 },
-        { name: 'Adaptive Interventions', path: '/analytics/interventions', icon: Sparkles },
       ],
     },
     {
       title: 'ACCOUNT & SUPPORT',
       items: [
-        { name: 'Student Profile', path: '/profile', icon: User },
-        { name: 'Account Settings', path: '/settings', icon: Settings },
-        { name: 'Help & Docs', path: '/help', icon: HelpCircle },
+        { name: 'Profile & Support', path: '/profile', icon: User },
+        { name: 'Help & Guides', path: '/help', icon: HelpCircle },
       ],
     },
   ]
@@ -69,14 +64,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-full select-none">
       {/* Brand Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-100 gap-3">
-        <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm">
+        <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center text-white shadow-sm border border-[#1d4ed8]">
           <GraduationCap className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="font-bold text-slate-900 tracking-tight text-base flex items-center gap-1.5">
-            ExamTwin <span className="text-[10px] font-semibold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">AI</span>
+          <h1 className="font-bold text-[#14213D] tracking-tight text-base flex items-center gap-1.5">
+            CodeKnot <span className="text-[10px] font-semibold bg-[#E0F2FE] text-[#2563EB] px-1.5 py-0.5 rounded border border-[#BFDBFE]">AI</span>
           </h1>
-          <p className="text-xs text-slate-400">Error-Aware Prep</p>
+          <p className="text-xs text-slate-500">Smart study & exam prep</p>
         </div>
       </div>
 

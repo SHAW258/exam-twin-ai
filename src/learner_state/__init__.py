@@ -1,4 +1,4 @@
-"""Learner State and Error DNA package for ExamTwin.
+"""Learner State and Error DNA package for CodeKnot.
 
 Provides persistent student models, immutable error diagnosis audit trails,
 topic mastery calculations, and explainable Error DNA summaries.

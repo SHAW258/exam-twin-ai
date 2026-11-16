@@ -1,4 +1,4 @@
-"""Database models, connection pooling, and schema management for ExamTwin."""
+"""Database models, connection pooling, and schema management for CodeKnot."""
 
 from src.database.connection import DatabaseManager, get_db_manager
 from src.database.models import (

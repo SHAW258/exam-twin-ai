@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Minimize2, Bot, Send, Sparkles, BookOpen, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { Minimize2, Bot, Send } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
@@ -93,7 +93,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
               </div>
               <h3 className="text-lg font-bold text-slate-800">Clear Mind • Deep Focus</h3>
               <p className="text-xs text-slate-500 max-w-md">
-                Enter any challenging concept or past exam question. The AI Tutor analyzes textbook evidence in real time.
+                Ask a question about your uploaded study materials. CodeKnot will answer using relevant content when available.
               </p>
             </div>
           )}

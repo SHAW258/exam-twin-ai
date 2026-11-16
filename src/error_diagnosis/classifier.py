@@ -1,4 +1,4 @@
-"""Supervised Error Diagnosis Classifier Service for ExamTwin.
+"""Supervised Error Diagnosis Classifier Service for CodeKnot.
 
 Provides a clean inference interface using the trained TF-IDF + Logistic Regression
 baseline with configurable confidence thresholding, uncalibrated probability

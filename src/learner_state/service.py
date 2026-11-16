@@ -1,4 +1,4 @@
-"""Learner State and Error DNA Service for ExamTwin.
+"""Learner State and Error DNA Service for CodeKnot.
 
 Coordinates persistent student profiles, diagnostic event recording,
 Phase 5 ML classifier integration, and explainable Error DNA summaries.

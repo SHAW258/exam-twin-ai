@@ -184,7 +184,7 @@ async def tutor_websocket(
     await websocket.send_json({
         "type": "connected",
         "student_id": student_id,
-        "message": "Connected to ExamTwin AI Tutor live WebSocket.",
+        "message": "Connected to CodeKnot AI Tutor live WebSocket.",
     })
 
     # Dispatch recent chat history immediately so client holds previous chat

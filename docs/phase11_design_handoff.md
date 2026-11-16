@@ -1,17 +1,17 @@
-# ExamTwin — Phase 11 Final Design Audit & Implementation Handoff
+# CodeKnot — Phase 11 Final Design Audit & Implementation Handoff
 
 > **Document Version**: `1.0.0`  
 > **Target Release**: Phase 12 Web Frontend Development  
 > **Repository**: [https://github.com/Srija682/exam-twin-ai/](https://github.com/Srija682/exam-twin-ai/)  
 > **Target Branch**: `development`  
-> **Design Artifact Sources**: Google Stitch Design System & Figma Canvas (`Untitled / ExamTwin`)  
+> **Design Artifact Sources**: Google Stitch Design System & Figma Canvas (`Untitled / CodeKnot`)  
 > **Architecture Principle**: Web-First Single Page Application (React 19 + TypeScript + Vite + Tailwind CSS + React Router)
 
 ---
 
 ## 1. Executive Summary & Audit Context
 
-Phase 11 establishes the final design audit and implementation handoff specification for **ExamTwin**, an "Evidence-Grounded, Error-Aware Generative AI Tutor for Personalized Exam Preparation".
+Phase 11 establishes the final design audit and implementation handoff specification for **CodeKnot**, an "Evidence-Grounded, Error-Aware Generative AI Tutor for Personalized Exam Preparation".
 
 ### Architectural Constraints
 - **Platform**: Web-Application First. Strictly **no** Android APK or Kotlin/Jetpack Compose implementations.
@@ -40,7 +40,7 @@ This inventory catalogs all 23 primary screens and view states designed in Stitc
 | **S-02** | Student Sign In | `Sign In` | **Design Confirmed** | **Design Confirmed** | `POST /api/v1/auth/login`, `GET /api/v1/auth/me` |
 | **S-03** | Student Sign Up | `Sign Up` | **Design Confirmed** | **Design Confirmed** | `POST /api/v1/auth/register` |
 | **S-04** | Password Recovery | `Forgot Password` | **Design Confirmed** | **Backend Support Needs Verification** | *Client simulated* (No transactional email backend) |
-| **S-05** | Student Dashboard | `ExamTwin Dashboard` | **Design Confirmed** | **Design Confirmed** | `GET /api/v1/auth/me`, `GET /api/v1/learning/recommendations`, `GET /api/v1/learning/error-dna` |
+| **S-05** | Student Dashboard | `CodeKnot Dashboard` | **Design Confirmed** | **Design Confirmed** | `GET /api/v1/auth/me`, `GET /api/v1/learning/recommendations`, `GET /api/v1/learning/error-dna` |
 | **S-06** | AI Tutor Chat Workspace | `AI Tutor Chat Workspace` | **Design Confirmed** | **Design Confirmed** | `POST /api/v1/tutor/ask` |
 | **S-07** | Distraction-Free Tutor | `AI Tutor Distraction-Free Workspace` | **Design Confirmed** | **Design Confirmed** | `POST /api/v1/tutor/ask` |
 | **S-08** | Cognitive Error DNA | `Error DNA` | **Design Confirmed** | **Design Confirmed** | `GET /api/v1/learning/error-dna` |
@@ -73,7 +73,7 @@ graph TD
     C -->|Submit Login Form| E[POST /api/v1/auth/login]
     D -->|JWT Token Returned| F[Store Token in sessionStorage]
     E -->|JWT Token Returned| F
-    F -->|Hydrate Profile GET /api/v1/auth/me| G[ExamTwin Dashboard]
+    F -->|Hydrate Profile GET /api/v1/auth/me| G[CodeKnot Dashboard]
     C -->|Click Forgot Password| H[Forgot Password Page]
     H -->|Submit Recovery Email| I[Mock Success Banner]
     I -->|Return to Sign In| C
@@ -89,7 +89,7 @@ graph TD
 ### Flow 2: Evidence-Grounded Socratic Tutoring
 ```mermaid
 graph TD
-    A[ExamTwin Dashboard] -->|Click AI Tutor in Sidebar| B[AI Tutor Workspace]
+    A[CodeKnot Dashboard] -->|Click AI Tutor in Sidebar| B[AI Tutor Workspace]
     A -->|Click Focus Mode| C[Distraction-Free Fullscreen Tutor]
     B -->|Select Mode: Q&A / Hint / Practice| D[Enter Question Prompt]
     D -->|Submit Prompt| E[POST /api/v1/tutor/ask]
@@ -172,7 +172,7 @@ graph TD
 
 ## 4. Responsive Design Checklist
 
-ExamTwin is designed for cross-device web usage, supporting high-yield study sessions on desktops, tablets, and smartphones.
+CodeKnot is designed for cross-device web usage, supporting high-yield study sessions on desktops, tablets, and smartphones.
 
 ### Responsive Breakpoint System
 - **Desktop (`lg` / `xl` / `2xl`)**: $\ge 1024\text{px}$ — Dual/triple column layouts, persistent 256px sidebar, split-pane workspaces.
@@ -200,7 +200,7 @@ ExamTwin is designed for cross-device web usage, supporting high-yield study ses
 
 ## 5. API Mapping & Schema Specification
 
-Every screen in the ExamTwin inventory is mapped directly to the verified FastAPI endpoints and Pydantic schemas defined in `src/api/`.
+Every screen in the CodeKnot inventory is mapped directly to the verified FastAPI endpoints and Pydantic schemas defined in `src/api/`.
 
 ### 5.1 Authentication & Student Identity
 

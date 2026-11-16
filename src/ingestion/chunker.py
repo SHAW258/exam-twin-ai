@@ -1,4 +1,4 @@
-"""Page-Aware Document Chunker for ExamTwin RAG Ingestion.
+"""Page-Aware Document Chunker for CodeKnot RAG Ingestion.
 
 Splits extracted and cleaned course document pages into citation-retaining chunks
 with configurable sizes and overlaps, preserving page numbers and source metadata.

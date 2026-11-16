@@ -1,4 +1,4 @@
-"""Pretrained embedding service module for ExamTwin."""
+"""Pretrained embedding service module for CodeKnot."""
 
 from src.embeddings.embedding_service import (
     BaseEmbeddingService,

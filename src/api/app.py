@@ -1,4 +1,4 @@
-"""FastAPI application factory, middleware, exception handlers, and router integration for ExamTwin."""
+"""FastAPI application factory, middleware, exception handlers, and router integration for CodeKnot."""
 
 import logging
 from typing import Any, Dict
@@ -7,7 +7,7 @@ from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.api.routers import assessments, auth, documents, learning, measurements, tutor
+from src.api.routers import assessments, auth, documents, learning, measurements, support, tutor
 from src.config.settings import get_settings
 from src.ingestion.pdf_loader import (
     InvalidPDFSignatureError,
@@ -35,14 +35,14 @@ logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
-    """Instantiate and configure the ExamTwin FastAPI application."""
+    """Instantiate and configure the CodeKnot FastAPI application."""
     settings = get_settings()
 
     app = FastAPI(
-        title="ExamTwin AI Tutor API",
+        title="CodeKnot API",
         version="1.0.0",
         description=(
-            "Web API for ExamTwin: Evidence-Grounded, Error-Aware Generative AI Tutor "
+            "Web API for CodeKnot: Evidence-Grounded, Error-Aware Generative AI Tutor "
             "for Personalized Exam Preparation. Supports React + TypeScript web frontend."
         ),
         docs_url="/docs",
@@ -153,6 +153,7 @@ def create_app() -> FastAPI:
     api_v1.include_router(learning.router)
     api_v1.include_router(assessments.router)
     api_v1.include_router(measurements.router)
+    api_v1.include_router(support.router)
 
     app.include_router(api_v1)
 
@@ -163,7 +164,7 @@ def create_app() -> FastAPI:
     def health_check() -> Dict[str, Any]:
         return {
             "status": "healthy",
-            "service": "ExamTwin AI Tutor API",
+            "service": "CodeKnot API",
             "version": "1.0.0",
             "environment": getattr(settings, "APP_ENV", "development"),
         }
@@ -171,7 +172,7 @@ def create_app() -> FastAPI:
     @app.get("/", tags=["Root"], summary="API Root")
     def root() -> Dict[str, str]:
         return {
-            "message": "Welcome to ExamTwin AI Tutor API. Visit /docs for interactive OpenAPI specification.",
+            "message": "Welcome to CodeKnot API. Visit /docs for interactive OpenAPI specification.",
             "docs": "/docs",
             "health": "/health",
             "version": "v1",

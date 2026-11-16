@@ -1,4 +1,4 @@
-"""Prompt Builder for Course-Grounded Retrieval-Augmented Generation in ExamTwin.
+"""Prompt Builder for Course-Grounded Retrieval-Augmented Generation in CodeKnot.
 
 Constructs structured, prompt-injection-resistant prompts enforcing strict
 grounding, factual alignment, and source/page citations.
@@ -8,7 +8,7 @@ from typing import List, Optional
 from src.config.settings import get_settings
 from src.rag.retriever import RetrievedContextChunk
 
-SYSTEM_PROMPT_GROUNDED = """You are ExamTwin, an academic AI tutor for course-grounded exam preparation.
+SYSTEM_PROMPT_GROUNDED = """You are CodeKnot, an academic AI tutor for course-grounded exam preparation.
 
 Core Behavioral Directives:
 1. Grounding: Answer the student's question using ONLY the verified document context provided below.
@@ -141,16 +141,27 @@ class PromptBuilder:
         prompt = (
             f"[SYSTEM INSTRUCTIONS]\n"
             f"{SYSTEM_PROMPT_GROUNDED.strip()}\n"
-            f"Additional Directive: Generate an exam practice question strictly testable from the context.\n\n"
+            f"Additional Directive: Generate an exam practice question strictly from the retrieved context. Do not invent facts, numbers, student records, or topics not supported by the context. If the context is insufficient, respond with a short JSON object indicating insufficient information.\n\n"
             f"[RETRIEVED DOCUMENT CONTEXT]\n"
             f"{context_block}\n\n"
             f"[TOPIC FOCUS]\n"
             f"{topic.strip()}\n\n"
             f"[INSTRUCTIONS FOR RESPONSE]\n"
-            f"Generate:\n"
-            f"1. A clear examination question.\n"
-            f"2. The expected benchmark answer.\n"
-            f"3. The source citation and page from the context."
+            f"Return ONLY valid JSON (no markdown fences) in this shape:\n"
+            f"{{\n"
+            f"  \"questions\": [\n"
+            f"    {{\n"
+            f"      \"question\": \"...\",\n"
+            f"      \"options\": [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"],\n"
+            f"      \"correct_option_index\": 0,\n"
+            f"      \"explanation\": \"Short explanation grounded in the context\",\n"
+            f"      \"source_page\": 1\n"
+            f"    }}\n"
+            f"  ],\n"
+            f"  \"insufficient\": false,\n"
+            f"  \"message\": \"\"\n"
+            f"}}\n"
+            f"Rules: generate 3 high-quality MCQs when possible; every question must be answerable from the context; options must be relevant; correct_option_index is 0-based; if not enough information, set insufficient=true with a clear message and an empty questions array."
         )
         return prompt
 

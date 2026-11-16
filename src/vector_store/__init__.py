@@ -1,4 +1,4 @@
-"""Vector store abstraction and storage implementations for ExamTwin."""
+"""Vector store abstraction and storage implementations for CodeKnot."""
 
 from src.vector_store.base import (
     DocumentChunkRecord,

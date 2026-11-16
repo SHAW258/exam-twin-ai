@@ -30,11 +30,11 @@ export const ForgotPasswordPage: React.FC = () => {
       {/* Top Header */}
       <div className="max-w-4xl mx-auto w-full flex items-center justify-between gap-4 mb-2">
         <Link to="/" className="inline-flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#4338CA] flex items-center justify-center text-white shadow-xs">
+          <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-xs">
             <BookOpen className="w-4 h-4" />
           </div>
-          <span className="font-extrabold text-xl tracking-tight text-slate-900">
-            Exam<span className="text-[#4338CA]">Twin</span>
+          <span className="font-extrabold text-xl tracking-tight text-[#14213D]">
+            Code<span className="text-[#2563EB]">Knot</span>
           </span>
         </Link>
 
@@ -50,11 +50,11 @@ export const ForgotPasswordPage: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-[500px] my-6">
         <div className="bg-white p-7 sm:p-9 shadow-xl shadow-slate-200/60 border border-slate-200 rounded-2xl space-y-6">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-[#4338CA] flex items-center justify-center border border-indigo-100">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center border border-blue-100">
               <Lock className="w-5 h-5" />
             </div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+              <ShieldCheck className="w-3.5 h-3.5 text-[#2563EB]" />
               Secure Password Recovery
             </span>
           </div>
@@ -64,7 +64,7 @@ export const ForgotPasswordPage: React.FC = () => {
               Reset your password
             </h1>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Enter the email address associated with your ExamTwin account. We'll send instructions to reset your password.
+              Enter the email address associated with your CodeKnot account. We'll send instructions to reset your password.
             </p>
           </div>
 
@@ -110,7 +110,7 @@ export const ForgotPasswordPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 bg-[#4338CA] hover:bg-[#3730A3] text-white rounded-xl shadow-md shadow-indigo-200 text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-70"
+                className="w-full py-3 bg-[#2563EB] hover:bg-[#1d4ed8] text-white rounded-xl shadow-md shadow-blue-200 text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-70"
               >
                 <span>{isLoading ? 'Sending Link...' : 'Send Password Reset Link'}</span>
                 <Send className="w-4 h-4" />
@@ -128,7 +128,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
       {/* Bottom Legal Links */}
       <p className="text-center text-xs text-slate-400 py-2">
-        © 2025 ExamTwin • <Link to="/help" className="hover:underline">Help & Docs</Link>
+        © 2026 CodeKnot • <Link to="/help" className="hover:underline">Help & Guides</Link>
       </p>
     </div>
   )

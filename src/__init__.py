@@ -1,1 +1,1 @@
-"""ExamTwin AI Core package."""
+"""CodeKnot AI Core package."""

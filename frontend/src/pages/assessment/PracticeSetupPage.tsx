@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Sparkles, Dna, BookOpen, Clock, Play, ShieldCheck, Upload } from 'lucide-react'
+import { AlertCircle, Printer, TimerReset, Play, Upload, BookOpen } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { api } from '../../api/client'
@@ -8,200 +8,165 @@ import type { DocumentListItem } from '../../types/api'
 
 export const PracticeSetupPage: React.FC = () => {
   const navigate = useNavigate()
-
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
-  const [topic, setTopic] = useState('')
-  const [drillMode, setDrillMode] = useState<'adaptive' | 'error_dna' | 'mock'>('adaptive')
+  const [selectedDocId, setSelectedDocId] = useState<string>('')
   const [questionCount, setQuestionCount] = useState(5)
-  const [difficulty, setDifficulty] = useState('Adaptive')
+  const [activeMode, setActiveMode] = useState<'error' | 'dns_print' | 'adapted_retrieval' | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [recommendedTopic, setRecommendedTopic] = useState<string | null>(null)
 
   useEffect(() => {
     api.documents.list().then((docs) => {
       setDocuments(docs)
-      if (docs.length > 0 && !topic) {
-        setTopic(docs[0].title.replace(/\.pdf$/i, ''))
+      if (docs.length > 0) setSelectedDocId(docs[0].id)
+    }).catch(() => {})
+
+    api.learning.getInterventions().then((rec) => {
+      if (rec?.selected_topic && rec.selected_topic !== 'General Foundation') {
+        setRecommendedTopic(rec.selected_topic)
       }
     }).catch(() => {})
   }, [])
 
-  const handleStart = () => {
-    const selectedTopic = topic.trim() || (documents.length > 0 ? documents[0].title.replace(/\.pdf$/i, '') : 'General Study')
+  const selectedDoc = documents.find(d => d.id === selectedDocId)
+
+  const startDrill = (mode: 'error' | 'dns_print' | 'adapted_retrieval') => {
+    if (!selectedDocId) {
+      setStatusMessage('Please upload and select a PDF first.')
+      return
+    }
+    setActiveMode(mode)
+    setStatusMessage(
+      mode === 'dns_print'
+        ? 'DNS Print mode selected: generating a printable practice set from your selected PDF.'
+        : mode === 'adapted_retrieval'
+        ? `Adapted Retrieval Time Stimulation selected: timed practice focused on ${recommendedTopic ? `prioritized weak area '${recommendedTopic}'` : 'retrieval mastery'}.`
+        : 'Error mode selected: practice will focus on correcting mistakes, diagnostic traps, and reinforcing understanding.'
+    )
+
     navigate('/quiz', {
       state: {
-        topic: selectedTopic,
-        drillMode,
+        documentId: selectedDocId,
+        documentIds: [selectedDocId],
+        topic: (mode === 'adapted_retrieval' && recommendedTopic) ? recommendedTopic : (selectedDoc?.title?.replace(/\.pdf$/i, '') || 'Course Material'),
         questionCount,
+        drillMode: mode,
+        printMode: mode === 'dns_print',
+        timedMode: mode === 'adapted_retrieval',
       },
     })
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 font-sans">
+    <div className="max-w-4xl mx-auto space-y-6 font-sans">
       <div>
-        <div className="text-xs text-slate-500 mb-1">ExamTwin / Student Suite / Practice & Retrieval Drills / Setup</div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Practice & Diagnostic Drill Configuration
-        </h1>
-        <p className="mt-1 text-xs text-slate-600">
-          Configure adaptive test sessions grounded directly in your uploaded syllabus materials.
+        <div className="text-xs text-slate-500 mb-1">CodeKnot / Practice Setup</div>
+        <h1 className="text-2xl font-extrabold text-[#14213D] tracking-tight">Practice & Diagnostic Drills</h1>
+        <p className="mt-1 text-xs text-slate-600 max-w-3xl">
+          Automatically generate 5–10 practice questions from your uploaded PDF. No manual topic selection is required.
         </p>
       </div>
 
       <Card className="p-6 md:p-8 bg-white border border-slate-200 shadow-sm rounded-2xl space-y-6">
-        {/* Mode Selector */}
-        <div className="space-y-3">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Select Practice Strategy
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div
-              onClick={() => setDrillMode('error_dna')}
-              className={`p-4 rounded-xl border cursor-pointer text-xs space-y-1.5 transition-all ${
-                drillMode === 'error_dna'
-                  ? 'border-2 border-rose-600 bg-rose-50/50 text-rose-950 shadow-xs'
-                  : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:border-slate-300'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1.5">
-                <Dna className="w-4 h-4 text-rose-600" />
-                Error DNA Sprint
-              </div>
-              <p className="text-[11px] text-slate-500">Targets active misconceptions and recurring reasoning traps.</p>
-            </div>
-
-            <div
-              onClick={() => setDrillMode('adaptive')}
-              className={`p-4 rounded-xl border cursor-pointer text-xs space-y-1.5 transition-all ${
-                drillMode === 'adaptive'
-                  ? 'border-2 border-indigo-600 bg-indigo-50/50 text-indigo-950 shadow-xs'
-                  : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:border-slate-300'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                Adaptive Retrieval
-              </div>
-              <p className="text-[11px] text-slate-500">Dynamic scaling based on your topic proficiency.</p>
-            </div>
-
-            <div
-              onClick={() => setDrillMode('mock')}
-              className={`p-4 rounded-xl border cursor-pointer text-xs space-y-1.5 transition-all ${
-                drillMode === 'mock'
-                  ? 'border-2 border-indigo-600 bg-indigo-50/50 text-indigo-950 shadow-xs'
-                  : 'border-slate-200 bg-slate-50/50 text-slate-700 hover:border-slate-300'
-              }`}
-            >
-              <div className="font-bold flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-indigo-600" />
-                Timed Simulation
-              </div>
-              <p className="text-[11px] text-slate-500">Timed session for realistic exam preparation.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Topic Selector */}
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Target Curricular Topic or Study Document
-          </label>
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Select Uploaded PDF</label>
           {documents.length > 0 ? (
-            <div className="space-y-2">
-              <select
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {documents.map((d) => (
-                  <option key={d.id} value={d.title.replace(/\.pdf$/i, '')}>
-                    {d.title} ({d.chunks_count} chunks)
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                placeholder="Or type a specific subtopic..."
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
-              />
-            </div>
+            <select
+              value={selectedDocId}
+              onChange={(e) => setSelectedDocId(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+            >
+              {documents.map((doc) => (
+                <option key={doc.id} value={doc.id}>{doc.title}</option>
+              ))}
+            </select>
           ) : (
-            <div className="space-y-2">
-              <input
-                type="text"
-                placeholder="Enter topic name (e.g. Data Structures & Algorithms, Renal Clearance)..."
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5">
-                <span>Tip: Upload your course syllabus or notes in <Link to="/materials" className="underline font-bold">Study Materials</Link> to enable grounded questions with page citations.</span>
-              </p>
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+              <Upload className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-800 space-y-1">
+                <p className="font-semibold">No study materials uploaded yet.</p>
+                <p><Link to="/materials" className="underline font-bold">Upload a PDF</Link> to generate practice questions from its actual content.</p>
+              </div>
             </div>
           )}
+          <p className="text-[11px] text-slate-500">Questions are generated from the selected PDF content and may vary between sessions.</p>
         </div>
 
-        {/* Question Count & Difficulty */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Question Count
-            </label>
-            <div className="flex gap-2">
-              {[3, 5, 10].map((count) => (
-                <button
-                  key={count}
-                  type="button"
-                  onClick={() => setQuestionCount(count)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                    questionCount === count
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {count} Questions
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-              Difficulty Baseline
-            </label>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Number of Questions</label>
             <select
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={questionCount}
+              onChange={(e) => setQuestionCount(Number(e.target.value))}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             >
-              <option value="Foundational">Foundational Concept Check</option>
-              <option value="Adaptive">Adaptive (Scales to Performance)</option>
-              <option value="Challenging">Challenging / Board Exam Level</option>
+              <option value={5}>5 Questions</option>
+              <option value={7}>7 Questions</option>
+              <option value={10}>10 Questions</option>
             </select>
           </div>
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-start gap-2">
+            <BookOpen className="w-4 h-4 text-[#2563EB] mt-0.5" />
+            <span>Practice includes instant feedback, explanations, retry options, and score tracking based on your answers.</span>
+          </div>
         </div>
 
-        {/* Start Button */}
-        <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-slate-600">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>
-              {documents.length > 0 ? `${documents.length} Grounded course document(s) active` : 'Ungrounded practice session'}
-            </span>
-          </div>
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Drill Modes</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => startDrill('error')}
+              disabled={!selectedDocId}
+              className={`p-4 rounded-xl border-2 text-left space-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${activeMode === 'error' ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'}`}
+            >
+              <AlertCircle className="w-5 h-5 text-rose-600 mb-1" />
+              <span className="block text-sm font-bold text-slate-900">Error</span>
+              <span className="block text-[11px] text-slate-500">Practice focused on correcting mistakes and improving weak understanding.</span>
+            </button>
 
-          <Button
-            variant="primary"
-            onClick={handleStart}
-            className="bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 font-semibold px-6 py-2.5 text-xs"
-            rightIcon={<Play className="w-4 h-4 fill-white" />}
-          >
-            Launch Practice Drill
+            <button
+              type="button"
+              onClick={() => startDrill('dns_print')}
+              disabled={!selectedDocId}
+              className={`p-4 rounded-xl border-2 text-left space-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${activeMode === 'dns_print' ? 'border-[#2563EB] bg-blue-50/40' : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'}`}
+            >
+              <Printer className="w-5 h-5 text-[#2563EB] mb-1" />
+              <span className="block text-sm font-bold text-slate-900">DNS Print</span>
+              <span className="block text-[11px] text-slate-500">Generate a practice set you can review and print (Download & Study Print).</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => startDrill('adapted_retrieval')}
+              disabled={!selectedDocId}
+              className={`p-4 rounded-xl border-2 text-left space-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${activeMode === 'adapted_retrieval' ? 'border-[#14B8A6] bg-teal-50/40' : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'}`}
+            >
+              <TimerReset className="w-5 h-5 text-[#14B8A6] mb-1" />
+              <span className="block text-sm font-bold text-slate-900">Adapted Retrieval Time Stimulation</span>
+              <span className="block text-[11px] text-slate-500">Timed retrieval practice to strengthen recall under time pressure.</span>
+              {recommendedTopic && (
+                <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-teal-100 text-teal-800">
+                  Target: {recommendedTopic}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {statusMessage && (
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-xs text-[#1e3a8a]">{statusMessage}</div>
+        )}
+
+        <div className="pt-2 flex flex-wrap gap-3">
+          <Button onClick={() => startDrill('adapted_retrieval')} variant="primary" size="md" disabled={!selectedDocId} leftIcon={<Play className="w-4 h-4 fill-white" />} className="bg-[#2563EB] hover:bg-[#1d4ed8]">
+            Generate Practice from PDF
           </Button>
+          <Link to="/materials">
+            <Button variant="outline" size="md">Manage Study Materials</Button>
+          </Link>
         </div>
       </Card>
     </div>
   )
-}
+}

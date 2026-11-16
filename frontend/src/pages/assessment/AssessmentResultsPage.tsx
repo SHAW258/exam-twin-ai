@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { CheckCircle2, TrendingUp, Dna, ArrowRight, RotateCcw, BookOpen, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Dna, ArrowRight, RotateCcw } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 
@@ -43,7 +43,7 @@ export const AssessmentResultsPage: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6 font-sans">
       <div>
-        <div className="text-xs text-slate-500 mb-1">ExamTwin / Student Suite / Assessments / Results</div>
+        <div className="text-xs text-slate-500 mb-1">CodeKnot / Student Suite / Assessments / Results</div>
         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
           Assessment Performance Summary
         </h1>

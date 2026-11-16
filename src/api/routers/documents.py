@@ -1,4 +1,4 @@
-"""Document ingestion and catalog router for ExamTwin."""
+"""Document ingestion and catalog router for CodeKnot."""
 
 import email
 from pathlib import Path
@@ -111,12 +111,18 @@ async def upload_document(
 
     # Write to temporary file for PDFLoader parsing
     raw_dir = settings.raw_data_dir
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    temp_path = raw_dir / f"{doc_id}_{filename}"
-
     try:
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = raw_dir / f"{doc_id}_{filename}"
+        temp_path.write_bytes(file_bytes)
+    except OSError:
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "codeknot_uploads"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = temp_dir / f"{doc_id}_{filename}"
         temp_path.write_bytes(file_bytes)
 
+    try:
         pipeline = DocumentIngestionPipeline(db_manager=db_manager)
         result = pipeline.ingest_pdf(
             file_path=temp_path,

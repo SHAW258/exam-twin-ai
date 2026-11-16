@@ -16,6 +16,8 @@ import type {
   AssessmentResponse,
   MeasurementPayload,
   MeasurementResponse,
+  SupportTicket,
+  SupportTicketPayload,
   ApiErrorResponse,
 } from '../types/api'
 
@@ -41,31 +43,32 @@ export const getWsBaseUrl = (): string => {
 
 // Token management: Session-isolated memory cache with sessionStorage rehydration
 // SessionStorage clears immediately on tab close, reducing exposure compared to persistent localStorage.
+const TOKEN_KEY = 'codeknot_token'
+const LEGACY_TOKEN_KEY = 'examtwin_token'
 let inMemoryToken: string | null = null
 
 export const setAuthToken = (token: string | null): void => {
   inMemoryToken = token
-  if (token) {
-    try {
-      sessionStorage.setItem('examtwin_token', token)
-    } catch {
-      // storage unavailable / sandboxed
+  try {
+    if (token) {
+      sessionStorage.setItem(TOKEN_KEY, token)
+      sessionStorage.removeItem(LEGACY_TOKEN_KEY)
+    } else {
+      sessionStorage.removeItem(TOKEN_KEY)
+      sessionStorage.removeItem(LEGACY_TOKEN_KEY)
     }
-  } else {
-    try {
-      sessionStorage.removeItem('examtwin_token')
-    } catch {
-      // ignore
-    }
+  } catch {
+    // storage unavailable / sandboxed
   }
 }
 
 export const getAuthToken = (): string | null => {
   if (inMemoryToken) return inMemoryToken
   try {
-    const stored = sessionStorage.getItem('examtwin_token')
+    const stored = sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(LEGACY_TOKEN_KEY)
     if (stored) {
       inMemoryToken = stored
+      if (!sessionStorage.getItem(TOKEN_KEY)) sessionStorage.setItem(TOKEN_KEY, stored)
       return stored
     }
   } catch {
@@ -175,8 +178,26 @@ async function request<T>(
 export const api = {
   // Authentication
   auth: {
-    register: (payload: StudentRegisterPayload): Promise<StudentProfile> =>
-      request<StudentProfile>('/api/v1/auth/register', {
+    register: (payload: StudentRegisterPayload): Promise<AuthTokenResponse> =>
+      request<AuthTokenResponse>('/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    requestRegisterOTP: (payload: any): Promise<any> =>
+      request<any>('/api/v1/auth/register/request-otp', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    verifyRegisterOTP: (payload: any): Promise<AuthTokenResponse> =>
+      request<AuthTokenResponse>('/api/v1/auth/register/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    resendRegisterOTP: (payload: any): Promise<any> =>
+      request<any>('/api/v1/auth/register/resend-otp', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
@@ -312,5 +333,17 @@ export const api = {
         : '/api/v1/learning/measurements'
       return request<MeasurementResponse[]>(url)
     },
+  },
+
+  // Support Tickets (Backend Persisted)
+  support: {
+    createTicket: (payload: SupportTicketPayload): Promise<SupportTicket> =>
+      request<SupportTicket>('/api/v1/support/tickets', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    listTickets: (): Promise<SupportTicket[]> =>
+      request<SupportTicket[]>('/api/v1/support/tickets'),
   },
 }

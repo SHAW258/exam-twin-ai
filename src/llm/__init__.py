@@ -1,4 +1,4 @@
-"""LLM client and service abstraction module for ExamTwin."""
+"""LLM client and service abstraction module for CodeKnot."""
 
 from src.llm.gemini_service import (
     BaseLLMService,

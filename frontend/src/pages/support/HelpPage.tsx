@@ -1,256 +1,182 @@
-import React, { useState } from 'react'
-import {
-  HelpCircle,
-  Search,
-  BookOpen,
-  ShieldCheck,
-  Dna,
-  FileText,
-  ExternalLink,
-  ChevronDown,
-  ChevronRight,
-  Send,
-  CheckCircle2,
-  AlertCircle,
-  LifeBuoy,
-} from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { HelpCircle, ChevronDown, Send, CheckCircle2, FileText } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { api } from '../../api/client'
+
+type Ticket = { id: string; subject: string; description: string; status: 'Submitted' | 'In Review' | 'Resolved'; createdAt: string }
+
+const GuideItem: React.FC<{
+  title: string
+  isOpen: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}> = ({ title, isOpen, onToggle, children }) => (
+  <Card className="p-5 bg-white border border-slate-200 rounded-2xl">
+    <button className="w-full flex items-center justify-between text-left" onClick={onToggle}>
+      <span className="font-bold text-slate-900 text-sm flex items-center gap-2">
+        <FileText className="w-4 h-4 text-[#2563EB]" /> {title}
+      </span>
+      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+    </button>
+    {isOpen && <div className="mt-3 text-xs text-slate-600 leading-relaxed space-y-2">{children}</div>}
+  </Card>
+)
 
 export const HelpPage: React.FC = () => {
-  const [ticketCategory, setTicketCategory] = useState('Syllabus Ingestion & PDF Chunking')
-  const [ticketDescription, setTicketDescription] = useState('')
-  const [severity, setSeverity] = useState('Medium')
-  const [ticketSubmitted, setTicketSubmitted] = useState(false)
+  const [openGuide, setOpenGuide] = useState<string | null>('syllabus')
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [subject, setSubject] = useState('Study materials or AI tutor issue')
+  const [description, setDescription] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [tickets, setTickets] = useState<Ticket[]>(() => {
+    try { const raw = localStorage.getItem('codeknot_support_tickets'); return raw ? JSON.parse(raw) : [] } catch { return [] }
+  })
 
-  const handleTicketSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    api.support.listTickets().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setTickets(data.map(d => ({
+          id: d.id,
+          subject: d.subject,
+          description: d.message,
+          status: d.status === 'RESOLVED' ? 'Resolved' : d.status === 'IN_PROGRESS' ? 'In Review' : 'Submitted',
+          createdAt: d.created_at || new Date().toISOString(),
+        })))
+      }
+    }).catch(() => {})
+  }, [])
+
+  const submitTicket = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!ticketDescription) return
-    setTicketSubmitted(true)
+    if (!description.trim()) return
+    const desc = description.trim()
+    try {
+      const created = await api.support.createTicket({
+        category: 'Help & Guides',
+        subject: subject.trim(),
+        message: desc,
+      })
+      const ticket: Ticket = {
+        id: created.id,
+        subject: created.subject,
+        description: created.message,
+        status: 'Submitted',
+        createdAt: created.created_at || new Date().toISOString(),
+      }
+      setTickets(prev => [ticket, ...prev])
+    } catch {
+      const ticket: Ticket = {
+        id: `TKT-${Date.now()}`,
+        subject: subject.trim(),
+        description: desc,
+        status: 'Submitted',
+        createdAt: new Date().toISOString(),
+      }
+      setTickets(prev => [ticket, ...prev])
+      try { localStorage.setItem('codeknot_support_tickets', JSON.stringify([ticket, ...tickets])) } catch {}
+    }
+    setDescription('')
+    setSubmitted(true)
+    setTimeout(() => setSubmitted(false), 2500)
   }
 
   const faqs = [
     {
-      q: 'Why does AI Tutor refuse to answer certain questions without direct PDF citations?',
-      a: "To protect you from harmful confabulations in high-stakes examinations, ExamTwin enforces an immutable grounding filter. If a prompt does not align with your course materials and syllabus above a strict cosine similarity metric, the model declines speculative answers. Solution: Upload additional lecture slide decks or supplementary textbook PDFs in Study Materials.",
+      q: 'Why does the AI Tutor sometimes refuse to answer without PDF sources?',
+      a: 'When the tutor cannot find supporting information in your uploaded materials, it may avoid guessing. This helps prevent incorrect or made-up answers. Upload or select the relevant PDF so the tutor can answer using that content.',
     },
     {
-      q: 'How is Hake’s normalized learning gain calculated?',
-      a: 'Normalized gain g is calculated using Hake’s educational psychometric equation: g = (Post - Pre) / (100 - Pre). A gain g >= 0.5 denotes high cognitive velocity, while g < 0 indicates performance drop requiring targeted Error DNA intervention.',
+      q: 'Which questions can the AI answer?',
+      a: 'The AI can answer questions related to your uploaded study materials and supported course content, including explanations, summaries, hints, and practice guidance.',
     },
     {
-      q: 'Are my uploaded class slides or textbook chapters shared with other students?',
-      a: 'By default, documents uploaded with PRIVATE access level are strictly isolated to your authenticated student ID and never exposed to other students or shared public LLM training datasets.',
+      q: 'When is an uploaded PDF required?',
+      a: 'An uploaded PDF is required for PDF-grounded tutoring, citations, and PDF-based quiz/practice generation. Without relevant material, grounded features may be limited.',
+    },
+    {
+      q: 'How does the AI handle questions outside the uploaded PDF?',
+      a: 'If the answer is not available in the selected/uploaded material, the AI should clearly tell you that the information is not found in the source material instead of inventing details.',
+    },
+    {
+      q: 'How are AI answers grounded in relevant information?',
+      a: 'CodeKnot retrieves relevant passages from your uploaded documents and uses them to generate responses. When available, citations and page numbers are shown so you can verify the source.',
     },
   ]
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Top Header matching Figma */}
       <div>
-        <div className="text-xs text-slate-500 mb-1">
-          ExamTwin / Student Suite / Help & Support / Knowledge Base v4.2
-        </div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Help, Documentation & Student Support
-        </h1>
-        <p className="mt-1 text-xs text-slate-600 max-w-3xl leading-relaxed">
-          Search authoritative guides on retrieval-augmented grounding, Cognitive Error DNA taxonomy, syllabus vectorization, and dispatch priority engineering tickets.
-        </p>
+        <div className="text-xs text-slate-500 mb-1">CodeKnot / Help & Guides</div>
+        <h1 className="text-2xl font-extrabold text-[#14213D] tracking-tight">Help, Guides & Student Support</h1>
+        <p className="mt-1 text-xs text-slate-600 max-w-3xl">Learn how to use CodeKnot features, understand AI grounding and citations, and submit support requests.</p>
       </div>
 
-      {/* Global Search Bar with Quick Tags matching Figma */}
-      <Card className="p-6 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-4">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-          <input
-            type="text"
-            placeholder='Search articles, error codes, and tutorials (e.g., "cosine cutoff", "ANSI CSV sync", "FERPA pledge")...'
-            className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all placeholder:text-slate-400"
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <h2 className="text-sm font-bold text-[#14213D] uppercase tracking-wide">Guides</h2>
+          <GuideItem title="Syllabus Integration Pipeline – Explore in 3 Steps" isOpen={openGuide === 'syllabus'} onToggle={() => setOpenGuide(openGuide === 'syllabus' ? null : 'syllabus')}>
+            <p><strong>Step 1:</strong> Upload your syllabus or course PDF in <em>Study Materials</em>.</p>
+            <p><strong>Step 2:</strong> Wait for processing so CodeKnot can read and index the content for tutoring and practice.</p>
+            <p><strong>Step 3:</strong> Ask questions in AI Tutor or generate PDF-based quizzes and practice drills using the uploaded material.</p>
+          </GuideItem>
+          <GuideItem title="AI Tutor Grounding Precision Calibration Guide" isOpen={openGuide === 'grounding'} onToggle={() => setOpenGuide(openGuide === 'grounding' ? null : 'grounding')}>
+            <p>The AI Tutor uses your uploaded PDFs and study materials to find relevant passages before answering.</p>
+            <p>When supporting sources are available, answers can include citation badges with page numbers and quoted snippets so you can verify the response.</p>
+            <p>If the material does not contain enough information, the tutor should clearly state that instead of guessing.</p>
+          </GuideItem>
+          <GuideItem title="Assessment and Error DNA" isOpen={openGuide === 'error-dna'} onToggle={() => setOpenGuide(openGuide === 'error-dna' ? null : 'error-dna')}>
+            <p>CodeKnot analyzes your quiz and practice results to identify mistake patterns, repeated errors, and learning gaps.</p>
+            <p>Use <em>Learning Patterns</em>, <em>Topic Mastery</em>, and <em>Assessment History</em> to review strengths, weaknesses, and progress over time.</p>
+            <p>Recommendations and practice suggestions are based on your actual performance data.</p>
+          </GuideItem>
+          <GuideItem title="How to Use Key Features (Step by Step)" isOpen={openGuide === 'features'} onToggle={() => setOpenGuide(openGuide === 'features' ? null : 'features')}>
+            <p><strong>Grounded Q&A:</strong> Upload a PDF → open AI Tutor → ask a question → review the answer and citations/page numbers.</p>
+            <p><strong>Socratic Hint:</strong> In AI Tutor, choose Hint mode to get step-by-step guidance instead of the final answer; request another hint or reveal the answer when needed.</p>
+            <p><strong>Practical Drill:</strong> Go to Practice Setup → select an uploaded PDF → choose a drill mode → generate questions → answer, get instant feedback, and retry.</p>
+          </GuideItem>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-400 font-semibold text-[11px]">Quick Filters:</span>
-          {['Vector Grounding', 'Chunking Failure', 'Institutional SSO', 'Error DNA Taxonomy', 'Hake’s Formula'].map((tag) => (
-            <span
-              key={tag}
-              className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      </Card>
-
-      {/* 3 Knowledge Pillars Cards matching Figma */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <Card hoverEffect className="p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">Syllabus Ingestion Pipeline</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Syllabus PDF formatting, high-density OCR extraction, apex chunking pipelines, and multi-tenant semantic dialog modes.
-          </p>
-          <div className="pt-2">
-            <span className="text-xs font-bold text-indigo-600 hover:underline inline-flex items-center gap-1 cursor-pointer">
-              Explore 3-step setup &rarr;
-            </span>
-          </div>
-        </Card>
-
-        <Card hoverEffect className="p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">AI Tutor Grounding Precision</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Deep-dive into cosine similarity research telemetry, 0.30-accuracy PDF attribution anchor links, and token-redundant safety.
-          </p>
-          <div className="pt-2">
-            <span className="text-xs font-bold text-emerald-700 hover:underline inline-flex items-center gap-1 cursor-pointer">
-              Calibration guides &rarr;
-            </span>
-          </div>
-        </Card>
-
-        <Card hoverEffect className="p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-            <Dna className="w-5 h-5" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">Assessments & Error DNA</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            Algorithmic psychometrics, hierarchical Bayesian-cognitive traversal, trajectory log tagging, and vector-based parameters.
-          </p>
-          <div className="pt-2">
-            <span className="text-xs font-bold text-rose-600 hover:underline inline-flex items-center gap-1 cursor-pointer">
-              Diagnostic formulas &rarr;
-            </span>
-          </div>
-        </Card>
-      </div>
-
-      {/* Strict Grounding Safety Protocol Section matching Figma */}
-      <div className="p-6 md:p-8 rounded-2xl bg-indigo-950 text-white shadow-md space-y-5">
-        <div className="space-y-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">Under the Hood</span>
-          <h3 className="text-xl font-bold tracking-tight">The Strict-Grounding Safety Protocol</h3>
-          <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
-            ExamTwin uses deterministic vector embeddings. When arriving at exam practice prompts, the AI tutor compares conceptual candidate axioms strictly against indexed textbook passages.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-          <div className="p-4 rounded-xl bg-indigo-900/50 border border-indigo-800/80 space-y-1">
-            <span className="font-bold text-indigo-300 block">Stage 1 - Ingestion</span>
-            <p className="text-slate-300 text-[11px]">Syllabus PDF above 99% vector fidelity with 64-spaced-stride tokenization.</p>
-          </div>
-          <div className="p-4 rounded-xl bg-indigo-900/50 border border-indigo-800/80 space-y-1">
-            <span className="font-bold text-indigo-300 block">Stage 2 - Vector Filter</span>
-            <p className="text-slate-300 text-[11px]">Cross-attention queries matching vector cosine thresholds &ge; 0.82.</p>
-          </div>
-          <div className="p-4 rounded-xl bg-indigo-900/50 border border-indigo-800/80 space-y-1">
-            <span className="font-bold text-indigo-300 block">Stage 3 - Strict Run</span>
-            <p className="text-slate-300 text-[11px]">Grounding verified via source anchors with zero LLM hallucination guarantee.</p>
-          </div>
-        </div>
-      </div>
-
-      {/* FAQ & Support Ticket Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: FAQ Accordion (7 cols) */}
-        <div className="lg:col-span-7 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-          <h3 className="text-base font-bold text-slate-900">High-Yield FAQ</h3>
-          <div className="space-y-3">
-            {faqs.map((faq, i) => (
-              <div key={i} className="rounded-xl border border-slate-200 overflow-hidden text-xs">
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full p-3.5 bg-slate-50/70 hover:bg-slate-100 flex items-center justify-between font-bold text-slate-800 text-left transition-colors"
-                >
-                  <span>{faq.q}</span>
-                  {openFaq === i ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />}
+        <div className="space-y-4">
+          <h2 className="text-sm font-bold text-[#14213D] uppercase tracking-wide">FAQ</h2>
+          <Card className="p-5 bg-white border border-slate-200 rounded-2xl space-y-2">
+            {faqs.map((f, i) => (
+              <div key={i} className="border border-slate-200 rounded-xl overflow-hidden">
+                <button className="w-full flex items-center justify-between gap-3 p-3 text-left bg-slate-50 hover:bg-slate-100" onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+                  <span className="text-xs font-semibold text-slate-800 flex items-center gap-2"><HelpCircle className="w-4 h-4 text-[#2563EB]" /> {f.q}</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 ${openFaq === i ? 'rotate-180' : ''}`} />
                 </button>
-                {openFaq === i && (
-                  <div className="p-4 bg-white text-slate-600 leading-relaxed border-t border-slate-100">
-                    {faq.a}
-                  </div>
-                )}
+                {openFaq === i && <div className="p-3 text-xs text-slate-600 leading-relaxed bg-white">{f.a}</div>}
               </div>
             ))}
-          </div>
-        </div>
+          </Card>
 
-        {/* Right Column: Submit Support Ticket (5 cols) */}
-        <div className="lg:col-span-5 p-6 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-4">
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-slate-900">Submit Support Ticket</h3>
-            <p className="text-xs text-slate-500">Direct dispatch to Clinical & Engineering desk</p>
-          </div>
-
-          {ticketSubmitted ? (
-            <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-2 text-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-              <p className="font-bold text-sm">Ticket Dispatched</p>
-              <p>Reference: #TK-89104-EX. An engineer will inspect your syllabus vector pipeline within 2 business hours.</p>
-            </div>
-          ) : (
-            <form onSubmit={handleTicketSubmit} className="space-y-3 text-xs">
+          <h2 className="text-sm font-bold text-[#14213D] uppercase tracking-wide">Submit Support Ticket</h2>
+          <Card className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3">
+            {submitted && <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-800 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Ticket submitted successfully. You can track its status below.</div>}
+            <form onSubmit={submitTicket} className="space-y-3">
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Category</label>
-                <select
-                  value={ticketCategory}
-                  onChange={(e) => setTicketCategory(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 bg-white"
-                >
-                  <option value="Syllabus Ingestion & PDF Chunking">Syllabus Ingestion & PDF Chunking</option>
-                  <option value="AI Tutor Citation Inaccuracy">AI Tutor Citation Inaccuracy</option>
-                  <option value="Assessment Telemetry Error">Assessment Telemetry Error</option>
-                  <option value="Single Sign-On Authentication">Single Sign-On Authentication</option>
-                </select>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Issue Subject</label>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm" />
               </div>
-
               <div>
-                <label className="block text-slate-700 font-semibold mb-1">Diagnostic Severity</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Low', 'Medium', 'High'].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setSeverity(s)}
-                      className={`py-1.5 rounded-lg border font-bold text-xs ${
-                        severity === s
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-slate-50 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Problem Description</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} required placeholder="Describe the problem..." className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm" />
               </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="e.g. Ingestion failed at page 29 of Robbins Pathology PDF..."
-                  value={ticketDescription}
-                  onChange={(e) => setTicketDescription(e.target.value)}
-                  className="w-full p-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-
-              <Button type="submit" variant="primary" className="w-full py-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 font-semibold">
-                Dispatch Ticket to Priority Queue
-              </Button>
+              <Button type="submit" variant="primary" className="bg-[#2563EB] hover:bg-[#1d4ed8]" leftIcon={<Send className="w-4 h-4" />}>Submit</Button>
             </form>
-          )}
+            <div className="pt-1 space-y-2">
+              <p className="text-xs font-bold text-slate-700">Ticket Status</p>
+              {tickets.length === 0 ? <p className="text-xs text-slate-500">No tickets submitted yet.</p> : tickets.slice(0,5).map(t => (
+                <div key={t.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div className="flex items-center justify-between"><span className="font-semibold text-slate-800">{t.subject}</span><span className="px-2 py-0.5 rounded bg-blue-50 text-[#2563EB] border border-blue-200">{t.status}</span></div>
+                  <p className="text-[10px] text-slate-400 mt-1">{t.id} • {new Date(t.createdAt).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       </div>
     </div>
   )
-}
+}

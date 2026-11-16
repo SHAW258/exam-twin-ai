@@ -277,7 +277,7 @@ def run_training_pipeline(
         "model_version": model_version,
         "model_type": "TF-IDF + LogisticRegression",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "academic_project": "ExamTwin AI (MCA)",
+        "academic_project": "CodeKnot AI (MCA)",
         "features": {
             "format_template": "Question: {q} | Expected: {e} | Student Answer: {s} | Context: {c}",
             "ngram_range": [1, 2],

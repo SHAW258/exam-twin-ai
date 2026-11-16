@@ -1,4 +1,4 @@
-"""PDF Document Loader for ExamTwin Ingestion Pipeline.
+"""PDF Document Loader for CodeKnot Ingestion Pipeline.
 
 Extracts text page-by-page from course PDFs while preserving document IDs,
 1-indexed page metadata, and academic citation references. Enforces security
