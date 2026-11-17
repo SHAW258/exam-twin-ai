@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { subscribeToLoading } from '../../api/client'
-import { Loader2, Server } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
 
 export const GlobalApiLoader: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
@@ -32,7 +32,16 @@ export const GlobalApiLoader: React.FC = () => {
 
   if (!isLoading) return null
 
-  const isColdStart = elapsedSeconds >= 5
+  const isLocal =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+  let statusText = 'Processing request...'
+  if (elapsedSeconds >= 3) {
+    statusText = isLocal
+      ? `AI Tutor is analyzing and generating answer... [${elapsedSeconds}s]`
+      : `AI Tutor is synthesizing response... [${elapsedSeconds}s]`
+  }
 
   return (
     <>
@@ -46,13 +55,9 @@ export const GlobalApiLoader: React.FC = () => {
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9998] transition-all duration-300 animate-in fade-in slide-in-from-top-2">
           <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 text-white text-xs font-medium shadow-xl backdrop-blur-md border border-slate-700/50">
             <Loader2 className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
-            <span>
-              {isColdStart
-                ? `Waking up cloud server (cold start takes ~30s)... [${elapsedSeconds}s]`
-                : 'Connecting to CodeKnot AI server...'}
-            </span>
-            {isColdStart && (
-              <Server className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1" />
+            <span>{statusText}</span>
+            {elapsedSeconds >= 3 && (
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1" />
             )}
           </div>
         </div>

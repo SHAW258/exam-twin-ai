@@ -136,8 +136,7 @@ class MockLLMService(BaseLLMService):
                 "In computer science and cybersecurity, the **CIA Triad** represents the three foundational pillars of information security:\n\n"
                 "1. **Confidentiality:** Ensuring sensitive data is accessible only to authorized personnel and processes (implemented via AES/RSA encryption, access control lists, and MFA).\n"
                 "2. **Integrity:** Maintaining the trustworthiness, consistency, and accuracy of data over its entire lifecycle (ensured via cryptographic hashing like SHA-256 and digital signatures).\n"
-                "3. **Availability:** Guaranteeing reliable, timely access to information, networks, and resources by authorized users whenever needed (achieved via redundant hardware, DDoS protection, and backups).\n\n"
-                "*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
+                "3. **Availability:** Guaranteeing reliable, timely access to information, networks, and resources by authorized users whenever needed (achieved via redundant hardware, DDoS protection, and backups)."
             )
         elif "cyber" in low_q or "security" in low_q:
             return (
@@ -147,8 +146,7 @@ class MockLLMService(BaseLLMService):
                 "* **Network Security:** Firewalls, IPsec, IDS/IPS, and secure routing protocols.\n"
                 "* **Application Security:** Preventing vulnerabilities such as SQL injection, buffer overflows, and cross-site scripting (XSS).\n"
                 "* **Information Security:** Data encryption, privacy policies, and compliance (e.g., IT Act, GDPR).\n"
-                "* **Operational Security:** Incident response, risk assessment, digital forensics, and disaster recovery.\n\n"
-                "*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
+                "* **Operational Security:** Incident response, risk assessment, digital forensics, and disaster recovery."
             )
         elif "python" in low_q or "oop" in low_q:
             return (
@@ -157,16 +155,14 @@ class MockLLMService(BaseLLMService):
                 "* **Class & Object:** A class is a blueprint; an object is an instance containing data (attributes) and behavior (methods).\n"
                 "* **Encapsulation:** Bundling data with methods and restricting direct access to internal components.\n"
                 "* **Inheritance:** Enabling a child class to inherit attributes and methods from a parent class.\n"
-                "* **Polymorphism:** Allowing different classes to be treated as instances of the same general class through common interfaces.\n\n"
-                "*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
+                "* **Polymorphism:** Allowing different classes to be treated as instances of the same general class through common interfaces."
             )
         elif user_q:
             return (
                 f"**Academic Summary on '{user_q}':**\n\n"
                 f"In university coursework, mastering this concept requires understanding its formal definition, "
                 f"underlying architecture, and practical problem-solving applications. "
-                f"To ground this answer specifically in your textbook or lecture slides, you can upload course notes in the Study Materials tab.\n\n"
-                f"*(Answer provided by CodeKnot offline academic engine while Gemini API daily quota is resetting.)*"
+                f"To ground this answer specifically in your textbook or lecture slides, you can upload course notes in the Study Materials tab."
             )
 
         return self.default_response
