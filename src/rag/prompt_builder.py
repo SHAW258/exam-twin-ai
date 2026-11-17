@@ -101,8 +101,9 @@ class PromptBuilder:
             f"{question.strip()}\n\n"
             f"[INSTRUCTIONS FOR RESPONSE]\n"
             f"1. Formulate a comprehensive, grounded answer using the retrieved context above.\n"
-            f"2. Clearly mention the relevant source document and page number(s) at the end of your explanation.\n"
-            f"3. If the context does not supply the necessary evidence, say so explicitly."
+            f"2. Jump straight into the explanation—do NOT greet the user or introduce yourself (e.g., never start with 'Hello! I am CodeKnot...').\n"
+            f"3. Clearly mention the relevant source document and page number(s) at the end of your explanation.\n"
+            f"4. If the context does not supply the necessary evidence, say so explicitly."
         )
         return prompt
 
@@ -126,7 +127,7 @@ class PromptBuilder:
             f"Question: {question.strip()}\n"
             f"{student_attempt_str}\n"
             f"[INSTRUCTIONS FOR RESPONSE]\n"
-            f"Provide a targeted, 2-to-3 sentence educational hint referencing the core concept from the material."
+            f"Jump straight into a targeted, 2-to-3 sentence educational hint referencing the core concept from the material. Do NOT greet the student or introduce yourself."
         )
         return prompt
 

@@ -239,11 +239,12 @@ class RAGService:
                 )
             logger.info("No relevant chunks found above similarity threshold for query. Generating general principles answer.")
             general_prompt = (
-                f"You are CodeKnot, an academic AI tutor for university students.\n"
-                f"The student asked the following question: '{cleaned_question}'.\n\n"
-                f"Note: This topic was not directly cited in the student's currently uploaded document excerpts. "
-                f"Please explain the concept thoroughly, clearly, and pedagogically using foundational academic principles, "
-                f"providing definitions, core components, and examples to help the student learn and prepare for exams."
+                f"Answer the student's academic question directly, clearly, and thoroughly using well-structured Markdown.\n"
+                f"Question: '{cleaned_question}'\n\n"
+                f"Rules:\n"
+                f"- Do NOT greet the student or introduce yourself (never say 'Hello! I am CodeKnot...' or similar).\n"
+                f"- Do NOT mention uploaded documents, missing excerpts, or course files (the UI already displays the source badge).\n"
+                f"- Jump straight into the explanation with clear headings, concise bullet points, key definitions, and practical examples."
             )
             try:
                 generated_answer = self.llm_service.generate(general_prompt)
@@ -306,8 +307,11 @@ class RAGService:
 
         if not chunks:
             general_hint_prompt = (
-                f"You are an academic AI tutor. Provide a constructive Socratic hint to help a university student answer: '{question.strip()}'. "
-                f"Do not give away the direct answer; give a guiding clue or question to stimulate their critical thinking."
+                f"Provide a constructive Socratic hint to help a university student work through this question: '{question.strip()}'.\n\n"
+                f"Rules:\n"
+                f"- Do NOT greet the student, introduce yourself, or mention uploaded documents.\n"
+                f"- Do NOT give away the direct final answer.\n"
+                f"- Jump straight into 1-2 short guiding clues and a probing question to spark critical thinking."
             )
             try:
                 hint_text = self.llm_service.generate(general_hint_prompt)
