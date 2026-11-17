@@ -9,11 +9,14 @@ import {
   HelpCircle,
   Target,
   BookOpen,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { InteractivePracticeDrill, parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
+import { MarkdownMessage } from '../../components/tutor/MarkdownMessage'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
 import type { TutorAskResponse, TutorMode, SourceCitation, TutorChatMessageItem } from '../../types/api'
 
@@ -43,6 +46,13 @@ export const DistractionFreeTutorPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
+
+  const handleCopyMessage = (id: string, text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+    setCopiedMsgId(id)
+    setTimeout(() => setCopiedMsgId((prev) => (prev === id ? null : prev)), 1800)
+  }
 
   const wsRef = useRef<WebSocket | null>(null)
   const heartbeatTimerRef = useRef<number | null>(null)
@@ -411,49 +421,79 @@ export const DistractionFreeTutorPage: React.FC = () => {
             return (
               <div
                 key={msg.id}
-                className="p-6 md:p-8 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4"
+                className="flex items-start gap-3.5"
               >
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <CitationBadge
-                    grounded={msg.grounded ?? false}
-                    citationsCount={msg.citations?.length || 0}
-                  />
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span>Verified Course Synthesis</span>
-                    <span>•</span>
-                    <span>{msg.timestamp}</span>
-                  </div>
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                  <Sparkles className="w-4 h-4" />
                 </div>
 
-                {parsedDrill ? (
-                  <InteractivePracticeDrill data={parsedDrill} />
-                ) : (
-                  <div className="text-sm sm:text-base text-slate-800 leading-relaxed whitespace-pre-wrap font-serif">
-                    {msg.text}
-                  </div>
-                )}
-
-                {msg.citations && msg.citations.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                      Verified Source Textbooks:
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {msg.citations.map((c, i) => (
-                        <div
-                          key={i}
-                          className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1"
-                        >
-                          <div className="font-bold text-indigo-700">
-                            Page {c.page_number} ({Math.round(c.similarity_score * 100)}% Match)
-                          </div>
-                          <p className="text-slate-600 line-clamp-2 italic">"{c.snippet}"</p>
-                        </div>
-                      ))}
+                <div className="flex-1 min-w-0 rounded-2xl rounded-tl-sm bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 px-6 py-3.5 bg-slate-50/60 border-b border-slate-100">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-slate-900">CodeKnot AI</span>
+                      <CitationBadge
+                        grounded={msg.grounded ?? false}
+                        citationsCount={msg.citations?.length || 0}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
+                      <span>{msg.timestamp}</span>
                     </div>
                   </div>
-                )}
+
+                  <div className="px-6 py-5">
+                    {parsedDrill ? (
+                      <InteractivePracticeDrill data={parsedDrill} />
+                    ) : (
+                      <MarkdownMessage content={msg.text} />
+                    )}
+
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
+                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                          Verified Source Textbooks:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {msg.citations.map((c, i) => (
+                            <div
+                              key={i}
+                              className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1"
+                            >
+                              <div className="font-bold text-indigo-700">
+                                Page {c.page_number} ({Math.round(c.similarity_score * 100)}% Match)
+                              </div>
+                              <p className="text-slate-600 line-clamp-2 italic">"{c.snippet}"</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {!parsedDrill && (
+                    <div className="px-6 py-2 bg-slate-50/40 border-t border-slate-100 flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.id, msg.text)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                        title="Copy response"
+                      >
+                        {copiedMsgId === msg.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-600 font-semibold">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )
           })}

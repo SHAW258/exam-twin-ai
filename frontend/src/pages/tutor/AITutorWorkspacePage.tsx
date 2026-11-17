@@ -12,11 +12,14 @@ import {
   Sparkles,
   HelpCircle,
   Target,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { InteractivePracticeDrill, parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
+import { MarkdownMessage } from '../../components/tutor/MarkdownMessage'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
 import type { TutorAskResponse, TutorMode, DocumentListItem, SourceCitation, TutorChatMessageItem } from '../../types/api'
 
@@ -100,6 +103,13 @@ export const AITutorWorkspacePage: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
   const [selectedCitation, setSelectedCitation] = useState<SourceCitation | null>(null)
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
+
+  const handleCopyMessage = (id: string, text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+    setCopiedMsgId(id)
+    setTimeout(() => setCopiedMsgId((prev) => (prev === id ? null : prev)), 1800)
+  }
 
   const wsRef = useRef<WebSocket | null>(null)
   const heartbeatTimerRef = useRef<number | null>(null)
@@ -516,57 +526,95 @@ export const AITutorWorkspacePage: React.FC = () => {
         )}
 
         {/* Chat Message Scrollable Container */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FDFDFE]">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6 bg-gradient-to-b from-slate-50/50 to-white">
           {messages.map((msg) => {
             const parsedDrill = msg.sender === 'tutor' ? parsePracticeDrillJson(msg.text) : null
 
+            if (msg.sender === 'student') {
+              return (
+                <div key={msg.id} className="flex justify-end">
+                  <div className="max-w-xl rounded-2xl rounded-br-sm bg-indigo-600 text-white px-4 py-3 text-sm leading-relaxed shadow-xs">
+                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                    <span className="block text-[10px] text-indigo-200/90 text-right mt-1.5">
+                      {msg.timestamp}
+                    </span>
+                  </div>
+                </div>
+              )
+            }
+
             return (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${msg.sender === 'student' ? 'items-end' : 'items-start'}`}
-              >
-                <div
-                  className={`max-w-2xl rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
-                    msg.sender === 'student'
-                      ? 'bg-indigo-600 text-white shadow-xs rounded-br-xs'
-                      : 'bg-white border border-slate-200 shadow-2xs text-slate-800 rounded-bl-xs'
-                  }`}
-                >
-                  {msg.sender === 'tutor' && (
-                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+              <div key={msg.id} className="flex items-start gap-3 max-w-3xl">
+                {/* Sleek AI Avatar */}
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+
+                {/* ChatGPT / Gemini style AI Response Card */}
+                <div className="flex-1 min-w-0 rounded-2xl rounded-tl-sm bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                  {/* Card Header */}
+                  <div className="flex items-center justify-between gap-2 px-5 py-3 bg-slate-50/60 border-b border-slate-100">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-slate-900">CodeKnot AI</span>
                       <CitationBadge
                         grounded={msg.grounded ?? false}
                         citationsCount={msg.citations?.length || 0}
                       />
-                      <span className="text-[10px] text-slate-400">{msg.timestamp}</span>
                     </div>
-                  )}
+                    <span className="text-[11px] text-slate-400 shrink-0">{msg.timestamp}</span>
+                  </div>
 
-                  {/* Render either interactive drill widget or markdown text */}
-                  {parsedDrill ? (
-                    <InteractivePracticeDrill data={parsedDrill} />
-                  ) : (
-                    <div className="whitespace-pre-wrap">{msg.text}</div>
-                  )}
+                  {/* Formatted Response Body */}
+                  <div className="px-5 py-4">
+                    {parsedDrill ? (
+                      <InteractivePracticeDrill data={parsedDrill} />
+                    ) : (
+                      <MarkdownMessage content={msg.text} />
+                    )}
 
-                  {/* Inline Citation Pills if tutor message */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                      {msg.citations.map((c, idx) => (
-                        <button
-                          type="button"
-                          key={idx}
-                          onClick={() => setSelectedCitation(c)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border ${
-                            selectedCitation === c
-                              ? 'bg-indigo-600 text-white border-indigo-600'
-                              : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
-                          }`}
-                        >
-                          <BookOpen className={`w-3 h-3 ${selectedCitation === c ? 'text-white' : 'text-indigo-500'}`} />
-                          <span>Source: p.{c.page_number} ({Math.round(c.similarity_score * 100)}% match)</span>
-                        </button>
-                      ))}
+                    {/* Inline Citation Pills */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="mt-4 pt-3.5 border-t border-slate-100 flex flex-wrap gap-2">
+                        {msg.citations.map((c, idx) => (
+                          <button
+                            type="button"
+                            key={idx}
+                            onClick={() => setSelectedCitation(c)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors border ${
+                              selectedCitation === c
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                : 'bg-indigo-50/70 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
+                            }`}
+                          >
+                            <BookOpen className={`w-3 h-3 ${selectedCitation === c ? 'text-white' : 'text-indigo-500'}`} />
+                            <span>Source: p.{c.page_number} ({Math.round(c.similarity_score * 100)}% match)</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Subtle Footer Action Bar (Copy response like ChatGPT / Gemini) */}
+                  {!parsedDrill && (
+                    <div className="px-5 py-2 bg-slate-50/40 border-t border-slate-100 flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(msg.id, msg.text)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                        title="Copy response"
+                      >
+                        {copiedMsgId === msg.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-600 font-semibold">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </div>
@@ -575,9 +623,14 @@ export const AITutorWorkspacePage: React.FC = () => {
           })}
 
           {isLoading && (
-            <div className="flex items-center gap-2 p-4 text-xs text-slate-500 italic bg-white/60 border border-slate-100 rounded-xl max-w-md">
-              <LoadingSpinner size="sm" />
-              <span>{statusMessage || 'Consulting verified course documents and finding citations...'}</span>
+            <div className="flex items-start gap-3 max-w-2xl">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="flex items-center gap-2.5 px-4 py-3 text-xs sm:text-sm text-slate-600 bg-white border border-slate-200/80 rounded-2xl rounded-tl-sm shadow-2xs">
+                <LoadingSpinner size="sm" />
+                <span>{statusMessage || 'Thinking and synthesizing your answer...'}</span>
+              </div>
             </div>
           )}
 

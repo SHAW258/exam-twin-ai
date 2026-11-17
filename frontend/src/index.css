@@ -43,3 +43,20 @@ input::-ms-reveal,
 input::-ms-clear {
   display: none !important;
 }
+
+/* Polished KaTeX math styling inside AI Tutor Markdown messages */
+.ai-markdown .katex-display {
+  margin: 1rem 0;
+  padding: 0.875rem 1.25rem;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+.ai-markdown .katex {
+  font-size: 1.02em;
+  color: #1E293B;
+}
