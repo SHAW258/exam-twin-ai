@@ -61,7 +61,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
             <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <CitationBadge grounded={response.grounded} citationsCount={response.citations?.length} />
-                <span className="text-xs text-slate-400">Strictly Grounded Synthesis</span>
+                <span className="text-xs text-slate-400">Verified Course Synthesis</span>
               </div>
 
               <div className="text-sm font-semibold text-slate-900 bg-slate-50 p-4 rounded-xl border border-slate-200/60">

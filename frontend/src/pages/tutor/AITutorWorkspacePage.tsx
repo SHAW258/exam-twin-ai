@@ -28,7 +28,7 @@ interface ChatMessage {
 const INITIAL_WELCOME: ChatMessage = {
   id: 'msg-init',
   sender: 'tutor',
-  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are available, I use them to provide grounded answers.\n\nAsk a question, request a Socratic hint, or start a practice drill.',
+  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are uploaded, I cite exact pages from your course notes.\n\nAsk a question, request a Socratic hint, or start a practice drill.',
   grounded: false,
   citations: [],
   timestamp: 'Just now',
@@ -144,7 +144,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                 }
               }
             } else if (data.type === 'status') {
-              setStatusMessage(data.message || 'Consulting verified course documents and synthesizing grounded proof...')
+              setStatusMessage(data.message || 'Consulting verified course documents and finding citations...')
             } else if (data.type === 'answer') {
               setIsLoading(false)
               setStatusMessage('')
@@ -234,7 +234,7 @@ export const AITutorWorkspacePage: React.FC = () => {
     setMessages((prev) => [...prev, userMsg])
     setQuestion('')
     setIsLoading(true)
-    setStatusMessage('Consulting verified course documents and synthesizing grounded proof...')
+    setStatusMessage('Consulting verified course documents and finding citations...')
 
     // Attempt WebSocket transmission if connected
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -363,7 +363,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                   mode === 'qa' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Grounded Q&A
+                Concept Q&A
               </button>
               <button
                 type="button"
@@ -411,7 +411,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           <div className="p-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs flex items-center justify-between px-5">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>No course documents uploaded. Upload your syllabus or notes to enable citation-grounded tutoring.</span>
+              <span>No course documents uploaded. Upload your syllabus or notes to enable verified page citations.</span>
             </div>
             <Link to="/materials" className="font-bold text-amber-900 hover:underline shrink-0">
               Upload PDF &rarr;
@@ -472,7 +472,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           {isLoading && (
             <div className="flex items-center gap-2 p-4 text-xs text-slate-500 italic">
               <LoadingSpinner size="sm" />
-              <span>{statusMessage || 'Consulting verified course documents and synthesizing grounded proof...'}</span>
+              <span>{statusMessage || 'Consulting verified course documents and finding citations...'}</span>
             </div>
           )}
 
@@ -484,7 +484,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="Ask a conceptual question grounded in your course materials..."
+              placeholder="Ask a conceptual question from your course materials..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all placeholder:text-slate-400"
@@ -512,7 +512,7 @@ export const AITutorWorkspacePage: React.FC = () => {
             </h3>
           </div>
           <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-            Evidence Grounded
+            Verified Source
           </span>
         </div>
 

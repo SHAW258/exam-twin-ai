@@ -54,7 +54,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({ grounded, citation
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
         </span>
         <BookOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Grounded in Course Material</span>
+        <span>From Course Material</span>
         <span className="ml-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
           {citationsCount} {citationsCount === 1 ? 'citation' : 'citations'}
         </span>
@@ -72,7 +72,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({ grounded, citation
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
         </span>
         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-        <span>Grounded in Course Material</span>
+        <span>From Course Material</span>
       </span>
     )
   }
