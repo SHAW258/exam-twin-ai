@@ -193,18 +193,18 @@ export const SignUpPage: React.FC = () => {
             )}
 
             {step === 'details' ? (
-              <form onSubmit={handleRequestOtp} className="space-y-4">
+              <form onSubmit={handleRequestOtp} className="space-y-4" autoComplete="off">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-slate-700">Full Name</label>
                     <div className="relative">
                       <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Enter your full name" />
+                      <input value={fullName} onChange={(e) => setFullName(e.target.value)} required autoComplete="off" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Enter your full name" />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-slate-700">Username</label>
-                    <input value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="student_username" />
+                    <input value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="off" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="student_username" />
                   </div>
                 </div>
 
@@ -212,7 +212,7 @@ export const SignUpPage: React.FC = () => {
                   <label className="block text-xs font-bold text-slate-700">Email Address</label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Enter your email" />
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="off" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Enter your email" />
                   </div>
                   <p className="text-[11px] text-slate-500">We will send a one-time verification code to this email.</p>
                 </div>
@@ -222,7 +222,7 @@ export const SignUpPage: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-700">Password</label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Create a password" />
+                      <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Create a password" />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                     </div>
                   </div>
@@ -230,7 +230,7 @@ export const SignUpPage: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-700">Confirm Password</label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Confirm your password" />
+                      <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]" placeholder="Confirm your password" />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">{showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                     </div>
                   </div>
