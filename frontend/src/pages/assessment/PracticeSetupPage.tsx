@@ -10,16 +10,14 @@ export const PracticeSetupPage: React.FC = () => {
   const navigate = useNavigate()
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
   const [selectedDocId, setSelectedDocId] = useState<string>('')
+  const [autoTopic, setAutoTopic] = useState('')
   const [questionCount, setQuestionCount] = useState(5)
   const [activeMode, setActiveMode] = useState<'error' | 'dns_print' | 'adapted_retrieval' | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [recommendedTopic, setRecommendedTopic] = useState<string | null>(null)
 
   useEffect(() => {
-    api.documents.list().then((docs) => {
-      setDocuments(docs)
-      if (docs.length > 0) setSelectedDocId(docs[0].id)
-    }).catch(() => {})
+    api.documents.list().then(setDocuments).catch(() => {})
 
     api.learning.getInterventions().then((rec) => {
       if (rec?.selected_topic && rec.selected_topic !== 'General Foundation') {
@@ -29,26 +27,27 @@ export const PracticeSetupPage: React.FC = () => {
   }, [])
 
   const selectedDoc = documents.find(d => d.id === selectedDocId)
+  const isAutoSource = !selectedDocId
 
   const startDrill = (mode: 'error' | 'dns_print' | 'adapted_retrieval') => {
-    if (!selectedDocId) {
-      setStatusMessage('Please upload and select a PDF first.')
-      return
-    }
+    const topic = (mode === 'adapted_retrieval' && recommendedTopic)
+      ? recommendedTopic
+      : (autoTopic.trim() || (isAutoSource ? 'Course Material' : (selectedDoc?.title?.replace(/\.pdf$/i, '') || 'Course Material')))
+
     setActiveMode(mode)
     setStatusMessage(
       mode === 'dns_print'
-        ? 'DNS Print mode selected: generating a printable practice set from your selected PDF.'
+        ? 'DNS Print mode selected: generating a printable practice set.'
         : mode === 'adapted_retrieval'
-        ? `Adapted Retrieval Time Stimulation selected: timed practice focused on ${recommendedTopic ? `prioritized weak area '${recommendedTopic}'` : 'retrieval mastery'}.`
+        ? `Adapted Retrieval Time Stimulation selected: timed practice focused on ${topic}.`
         : 'Error mode selected: practice will focus on correcting mistakes, diagnostic traps, and reinforcing understanding.'
     )
 
     navigate('/quiz', {
       state: {
-        documentId: selectedDocId,
-        documentIds: [selectedDocId],
-        topic: (mode === 'adapted_retrieval' && recommendedTopic) ? recommendedTopic : (selectedDoc?.title?.replace(/\.pdf$/i, '') || 'Course Material'),
+        documentId: selectedDocId || undefined,
+        documentIds: selectedDocId ? [selectedDocId] : undefined,
+        topic,
         questionCount,
         drillMode: mode,
         printMode: mode === 'dns_print',
@@ -63,33 +62,47 @@ export const PracticeSetupPage: React.FC = () => {
         <div className="text-xs text-slate-500 mb-1">CodeKnot / Practice Setup</div>
         <h1 className="text-2xl font-extrabold text-[#14213D] tracking-tight">Practice & Diagnostic Drills</h1>
         <p className="mt-1 text-xs text-slate-600 max-w-3xl">
-          Automatically generate 5–10 practice questions from your uploaded PDF. No manual topic selection is required.
+          Generate 5–20 practice questions. Auto mode checks your PDFs first, then anonymous shared course data, then Gemini practice if no PDF matches.
         </p>
       </div>
 
       <Card className="p-6 md:p-8 bg-white border border-slate-200 shadow-sm rounded-2xl space-y-6">
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Select Uploaded PDF</label>
-          {documents.length > 0 ? (
-            <select
-              value={selectedDocId}
-              onChange={(e) => setSelectedDocId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
-            >
-              {documents.map((doc) => (
-                <option key={doc.id} value={doc.id}>{doc.title}</option>
-              ))}
-            </select>
-          ) : (
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">PDF Source</label>
+          <select
+            value={selectedDocId}
+            onChange={(e) => setSelectedDocId(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
+          >
+            <option value="">Auto — my PDFs first, then shared course data</option>
+            {documents.map((doc) => (
+              <option key={doc.id} value={doc.id}>{doc.title}</option>
+            ))}
+          </select>
+          {documents.length === 0 && (
             <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
               <Upload className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-800 space-y-1">
-                <p className="font-semibold">No study materials uploaded yet.</p>
-                <p><Link to="/materials" className="underline font-bold">Upload a PDF</Link> to generate practice questions from its actual content.</p>
+                <p className="font-semibold">No PDFs in your library yet.</p>
+                <p>Auto mode still works with shared course data or Gemini practice. <Link to="/materials" className="underline font-bold">Upload a PDF</Link> for citations from your own notes.</p>
               </div>
             </div>
           )}
-          <p className="text-[11px] text-slate-500">Questions are generated from the selected PDF content and may vary between sessions.</p>
+          <p className="text-[11px] text-slate-500">
+            Choosing a specific PDF limits the quiz to that file. Auto mode hides file names, pages, and uploaders when using shared course data.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Topic / Focus {isAutoSource ? '(recommended for Auto)' : '(optional)'}</label>
+          <input
+            type="text"
+            value={autoTopic}
+            onChange={(e) => setAutoTopic(e.target.value)}
+            placeholder="e.g., Operating System Deadlocks, Database Normalization"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB] placeholder:text-slate-400"
+          />
+          <p className="text-[11px] text-slate-500">A clear topic improves matching when you have not selected a specific PDF.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -119,7 +132,7 @@ export const PracticeSetupPage: React.FC = () => {
             <button
               type="button"
               onClick={() => startDrill('error')}
-              disabled={!selectedDocId}
+
               className={`p-4 rounded-xl border-2 text-left space-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${activeMode === 'error' ? 'border-rose-400 bg-rose-50/40' : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'}`}
             >
               <AlertCircle className="w-5 h-5 text-rose-600 mb-1" />
@@ -130,7 +143,7 @@ export const PracticeSetupPage: React.FC = () => {
             <button
               type="button"
               onClick={() => startDrill('dns_print')}
-              disabled={!selectedDocId}
+
               className={`p-4 rounded-xl border-2 text-left space-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${activeMode === 'dns_print' ? 'border-[#2563EB] bg-blue-50/40' : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'}`}
             >
               <Printer className="w-5 h-5 text-[#2563EB] mb-1" />
@@ -141,7 +154,7 @@ export const PracticeSetupPage: React.FC = () => {
             <button
               type="button"
               onClick={() => startDrill('adapted_retrieval')}
-              disabled={!selectedDocId}
+
               className={`p-4 rounded-xl border-2 text-left space-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${activeMode === 'adapted_retrieval' ? 'border-[#14B8A6] bg-teal-50/40' : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'}`}
             >
               <TimerReset className="w-5 h-5 text-[#14B8A6] mb-1" />
@@ -161,8 +174,8 @@ export const PracticeSetupPage: React.FC = () => {
         )}
 
         <div className="pt-2 flex flex-wrap gap-3">
-          <Button onClick={() => startDrill('adapted_retrieval')} variant="primary" size="md" disabled={!selectedDocId} leftIcon={<Play className="w-4 h-4 fill-white" />} className="bg-[#2563EB] hover:bg-[#1d4ed8]">
-            Generate Practice from PDF
+          <Button onClick={() => startDrill('adapted_retrieval')} variant="primary" size="md" leftIcon={<Play className="w-4 h-4 fill-white" />} className="bg-[#2563EB] hover:bg-[#1d4ed8]">
+            Generate Practice
           </Button>
           <Link to="/materials">
             <Button variant="outline" size="md">Manage Study Materials</Button>
@@ -171,4 +184,4 @@ export const PracticeSetupPage: React.FC = () => {
       </Card>
     </div>
   )
-}
+}
