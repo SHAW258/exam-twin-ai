@@ -9,10 +9,14 @@ import {
   AlertCircle,
   Trash2,
   CheckCircle2,
+  Sparkles,
+  HelpCircle,
+  Target,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
+import { InteractivePracticeDrill, parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
 import type { TutorAskResponse, TutorMode, DocumentListItem, SourceCitation, TutorChatMessageItem } from '../../types/api'
 
@@ -28,10 +32,62 @@ interface ChatMessage {
 const INITIAL_WELCOME: ChatMessage = {
   id: 'msg-init',
   sender: 'tutor',
-  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are uploaded, I cite exact pages from your course notes.\n\nAsk a question, request a Socratic hint, or start a practice drill.',
+  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are uploaded, I cite exact pages from your course notes.\n\nChoose a mode above: ask a conceptual question, request a Socratic hint, or launch an interactive practice drill.',
   grounded: false,
   citations: [],
   timestamp: 'Just now',
+}
+
+const MODE_CONFIG: Record<
+  TutorMode,
+  {
+    title: string
+    description: string
+    placeholder: string
+    buttonText: string
+    icon: React.ReactNode
+    chips: string[]
+  }
+> = {
+  qa: {
+    title: 'Concept Q&A',
+    description: 'In-depth conceptual explanations citing verified textbook pages from your syllabus.',
+    placeholder: 'Ask any conceptual question (e.g., What is the CIA Triad in security?)...',
+    buttonText: 'Ask Tutor',
+    icon: <Sparkles className="w-3.5 h-3.5 text-indigo-500" />,
+    chips: [
+      'What is the CIA Triad in cybersecurity?',
+      'Explain Virtual Memory and Paging in OS',
+      'What are ACID properties in databases?',
+      'Explain Big-O Time Complexity',
+    ],
+  },
+  hint: {
+    title: 'Socratic Hint',
+    description: 'Guiding clues and thought-provoking questions to help you solve problems step by step.',
+    placeholder: 'Describe a question or problem you are stuck on (e.g., How to detect deadlock?)...',
+    buttonText: 'Get Socratic Hint',
+    icon: <HelpCircle className="w-3.5 h-3.5 text-amber-500" />,
+    chips: [
+      'Hint: How to detect and prevent deadlocks?',
+      'Hint: Difference between Process and Thread?',
+      'Hint: What are the edge cases in Binary Search?',
+      'Hint: When should I choose BFS over DFS?',
+    ],
+  },
+  practice: {
+    title: 'Practice Drill',
+    description: 'Generates interactive multiple-choice questions with instant scoring, feedback, and answers.',
+    placeholder: 'Enter a topic for an interactive practice drill (e.g., Network Security, Python OOP)...',
+    buttonText: 'Generate Drill',
+    icon: <Target className="w-3.5 h-3.5 text-rose-500" />,
+    chips: [
+      'Practice Drill: Cybersecurity Fundamentals',
+      'Practice Drill: Operating System Concepts',
+      'Practice Drill: Database Indexing & Normalization',
+      'Practice Drill: Data Structures & Algorithms',
+    ],
+  },
 }
 
 export const AITutorWorkspacePage: React.FC = () => {
@@ -59,7 +115,6 @@ export const AITutorWorkspacePage: React.FC = () => {
   useEffect(() => {
     api.documents.list().then(setDocuments).catch(() => {})
 
-    // Load past chat messages from DB so previous chat is preserved across refreshes
     api.tutor
       .getHistory(50)
       .then((history: TutorChatMessageItem[]) => {
@@ -75,7 +130,6 @@ export const AITutorWorkspacePage: React.FC = () => {
               : 'Earlier',
           }))
           setMessages(formatted)
-          // Pre-select first citation from latest tutor answer if available
           const latestTutorWithCitations = [...formatted].reverse().find((m) => m.sender === 'tutor' && m.citations?.length)
           if (latestTutorWithCitations?.citations?.length) {
             setSelectedCitation(latestTutorWithCitations.citations[0])
@@ -111,7 +165,6 @@ export const AITutorWorkspacePage: React.FC = () => {
           setWsStatus('connected')
           console.log('[Tutor WS] Connected to CodeKnot live stream')
 
-          // Start heartbeat ping every 25s to prevent Cloudflare/Render idle timeouts
           if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
           heartbeatTimerRef.current = window.setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
@@ -188,7 +241,6 @@ export const AITutorWorkspacePage: React.FC = () => {
           setWsStatus('disconnected')
           if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
 
-          // Auto-reconnect if not intentionally closed
           if (event.code !== 1000 && event.code !== 1008) {
             reconnectTimeoutRef.current = window.setTimeout(() => {
               if (isMounted) connectWebSocket()
@@ -218,31 +270,39 @@ export const AITutorWorkspacePage: React.FC = () => {
     }
   }, [])
 
-  // 3. Send Question (over WebSocket if OPEN, else HTTP fallback)
-  const handleSend = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!question.trim() || isLoading) return
+  // 3. Send Question Core Helper
+  const sendQuestionDirect = async (textToSend: string, explicitMode?: TutorMode) => {
+    const activeMode = explicitMode || mode
+    const cleanText = textToSend.trim()
+    if (!cleanText || isLoading) return
 
-    const userText = question.trim()
     const userMsg: ChatMessage = {
       id: `usr-${Date.now()}`,
       sender: 'student',
-      text: userText,
+      text: cleanText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
     setMessages((prev) => [...prev, userMsg])
     setQuestion('')
     setIsLoading(true)
-    setStatusMessage('Consulting verified course documents and finding citations...')
+
+    const loadingLabel =
+      activeMode === 'practice'
+        ? 'Generating interactive practice questions from course materials...'
+        : activeMode === 'hint'
+        ? 'Synthesizing Socratic hint without spoiling the answer...'
+        : 'Consulting verified course documents and finding citations...'
+
+    setStatusMessage(loadingLabel)
 
     // Attempt WebSocket transmission if connected
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(
         JSON.stringify({
           type: 'question',
-          question: userText,
-          mode,
+          question: cleanText,
+          mode: activeMode,
           topic: topic.trim() || undefined,
         })
       )
@@ -252,8 +312,8 @@ export const AITutorWorkspacePage: React.FC = () => {
     // HTTP Fallback if WebSocket is not open
     try {
       const res: TutorAskResponse = await api.tutor.ask({
-        question: userText,
-        mode,
+        question: cleanText,
+        mode: activeMode,
         topic: topic.trim() || undefined,
       })
 
@@ -285,6 +345,11 @@ export const AITutorWorkspacePage: React.FC = () => {
     }
   }
 
+  const handleSend = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    sendQuestionDirect(question)
+  }
+
   // 4. Clear Chat History via WebSocket and HTTP
   const handleClearHistory = async () => {
     if (!window.confirm('Clear all conversation history with the AI Tutor?')) return
@@ -301,6 +366,8 @@ export const AITutorWorkspacePage: React.FC = () => {
       setMessages([INITIAL_WELCOME])
     }
   }
+
+  const currentConfig = MODE_CONFIG[mode]
 
   return (
     <div className="h-[calc(100vh-7rem)] flex flex-col lg:flex-row gap-5 font-sans overflow-hidden">
@@ -346,41 +413,53 @@ export const AITutorWorkspacePage: React.FC = () => {
               </div>
               <p className="text-[11px] text-slate-500">
                 {documents.length > 0
-                  ? `Grounding Engine Active • ${documents.length} Indexed Course PDF${documents.length === 1 ? '' : 's'}`
+                  ? `Course Library Active • ${documents.length} Indexed Course PDF${documents.length === 1 ? '' : 's'}`
                   : 'No course materials uploaded yet'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mode Selector */}
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold">
+            {/* 3-Mode Selector */}
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold shadow-2xs">
               <button
                 type="button"
                 onClick={() => setMode('qa')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  mode === 'qa' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                  mode === 'qa'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
+                title="Concept Q&A: Thorough explanations with verified citations"
               >
-                Concept Q&A
+                <Sparkles className={`w-3.5 h-3.5 ${mode === 'qa' ? 'text-white' : 'text-indigo-600'}`} />
+                <span>Concept Q&A</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMode('hint')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  mode === 'hint' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                  mode === 'hint'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
+                title="Socratic Hint: Clues and guiding questions without spoiling the answer"
               >
-                Socratic Hint
+                <HelpCircle className={`w-3.5 h-3.5 ${mode === 'hint' ? 'text-white' : 'text-amber-500'}`} />
+                <span>Socratic Hint</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMode('practice')}
-                className={`px-2.5 py-1 rounded-md transition-colors ${
-                  mode === 'practice' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
+                  mode === 'practice'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
+                title="Practice Drill: Interactive multiple-choice questions with instant scoring"
               >
-                Practice Drill
+                <Target className={`w-3.5 h-3.5 ${mode === 'practice' ? 'text-white' : 'text-rose-500'}`} />
+                <span>Practice Drill</span>
               </button>
             </div>
 
@@ -399,11 +478,28 @@ export const AITutorWorkspacePage: React.FC = () => {
             <Link
               to="/tutor/focus"
               className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              title="Enter Distraction-Free Mode"
+              title="Enter Distraction-Free Focus Mode (Preserves Chat)"
             >
               <Maximize2 className="w-4 h-4" />
             </Link>
           </div>
+        </div>
+
+        {/* Active Mode Notice Strip */}
+        <div className="px-5 py-2 bg-indigo-50/60 border-b border-indigo-100 flex items-center justify-between text-xs text-indigo-950">
+          <div className="flex items-center gap-2">
+            {currentConfig.icon}
+            <span className="font-semibold text-indigo-900">{currentConfig.title}:</span>
+            <span className="text-slate-600">{currentConfig.description}</span>
+          </div>
+          {mode === 'practice' && (
+            <Link
+              to="/practice"
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline shrink-0"
+            >
+              Launch Full Timed Exam &rarr;
+            </Link>
+          )}
         </div>
 
         {/* Warning Banner if No Documents */}
@@ -421,56 +517,65 @@ export const AITutorWorkspacePage: React.FC = () => {
 
         {/* Chat Message Scrollable Container */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FDFDFE]">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${msg.sender === 'student' ? 'items-end' : 'items-start'}`}
-            >
+          {messages.map((msg) => {
+            const parsedDrill = msg.sender === 'tutor' ? parsePracticeDrillJson(msg.text) : null
+
+            return (
               <div
-                className={`max-w-2xl rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
-                  msg.sender === 'student'
-                    ? 'bg-indigo-600 text-white shadow-xs rounded-br-xs'
-                    : 'bg-white border border-slate-200 shadow-2xs text-slate-800 rounded-bl-xs'
-                }`}
+                key={msg.id}
+                className={`flex flex-col ${msg.sender === 'student' ? 'items-end' : 'items-start'}`}
               >
-                {msg.sender === 'tutor' && (
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                    <CitationBadge
-                      grounded={msg.grounded ?? false}
-                      citationsCount={msg.citations?.length || 0}
-                    />
-                    <span className="text-[10px] text-slate-400">{msg.timestamp}</span>
-                  </div>
-                )}
+                <div
+                  className={`max-w-2xl rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
+                    msg.sender === 'student'
+                      ? 'bg-indigo-600 text-white shadow-xs rounded-br-xs'
+                      : 'bg-white border border-slate-200 shadow-2xs text-slate-800 rounded-bl-xs'
+                  }`}
+                >
+                  {msg.sender === 'tutor' && (
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                      <CitationBadge
+                        grounded={msg.grounded ?? false}
+                        citationsCount={msg.citations?.length || 0}
+                      />
+                      <span className="text-[10px] text-slate-400">{msg.timestamp}</span>
+                    </div>
+                  )}
 
-                <div className="whitespace-pre-wrap">{msg.text}</div>
+                  {/* Render either interactive drill widget or markdown text */}
+                  {parsedDrill ? (
+                    <InteractivePracticeDrill data={parsedDrill} />
+                  ) : (
+                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                  )}
 
-                {/* Inline Citation Pills if tutor message */}
-                {msg.citations && msg.citations.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-                    {msg.citations.map((c, idx) => (
-                      <button
-                        type="button"
-                        key={idx}
-                        onClick={() => setSelectedCitation(c)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border ${
-                          selectedCitation === c
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
-                        }`}
-                      >
-                        <BookOpen className={`w-3 h-3 ${selectedCitation === c ? 'text-white' : 'text-indigo-500'}`} />
-                        <span>Source: p.{c.page_number} ({Math.round(c.similarity_score * 100)}% match)</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  {/* Inline Citation Pills if tutor message */}
+                  {msg.citations && msg.citations.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                      {msg.citations.map((c, idx) => (
+                        <button
+                          type="button"
+                          key={idx}
+                          onClick={() => setSelectedCitation(c)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border ${
+                            selectedCitation === c
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-indigo-50/80 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
+                          }`}
+                        >
+                          <BookOpen className={`w-3 h-3 ${selectedCitation === c ? 'text-white' : 'text-indigo-500'}`} />
+                          <span>Source: p.{c.page_number} ({Math.round(c.similarity_score * 100)}% match)</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {isLoading && (
-            <div className="flex items-center gap-2 p-4 text-xs text-slate-500 italic">
+            <div className="flex items-center gap-2 p-4 text-xs text-slate-500 italic bg-white/60 border border-slate-100 rounded-xl max-w-md">
               <LoadingSpinner size="sm" />
               <span>{statusMessage || 'Consulting verified course documents and finding citations...'}</span>
             </div>
@@ -479,12 +584,29 @@ export const AITutorWorkspacePage: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar */}
-        <div className="p-3.5 border-t border-slate-200 bg-white">
+        {/* Input Bar with Dynamic Mode Chips */}
+        <div className="p-3.5 border-t border-slate-200 bg-white space-y-2">
+          {/* Quick Suggestion Chips based on selected mode */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1">
+              Suggestions:
+            </span>
+            {currentConfig.chips.map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => sendQuestionDirect(chip)}
+                className="shrink-0 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 text-slate-700 border border-slate-200 transition-colors"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
           <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="Ask a conceptual question from your course materials..."
+              placeholder={currentConfig.placeholder}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all placeholder:text-slate-400"
@@ -492,11 +614,11 @@ export const AITutorWorkspacePage: React.FC = () => {
             <Button
               type="submit"
               variant="primary"
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 shadow-xs"
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 shadow-xs shrink-0"
               isLoading={isLoading}
               rightIcon={<Send className="w-4 h-4" />}
             >
-              Ask Tutor
+              {currentConfig.buttonText}
             </Button>
           </form>
         </div>
@@ -543,7 +665,7 @@ export const AITutorWorkspacePage: React.FC = () => {
                 Mathematically Bound Evidence
               </p>
               <p className="text-[11px] text-emerald-700">
-                This excerpt was extracted directly from your verified course PDF index in PostgreSQL.
+                This excerpt was extracted directly from your verified course PDF index in the database.
               </p>
             </div>
           </div>

@@ -67,7 +67,7 @@ class RAGService:
         self.llm_service = llm_service or get_llm_service()
         self.prompt_builder = prompt_builder or PromptBuilder()
         self.insufficient_context_message = insufficient_context_message or (
-            "I could not find relevant information in your uploaded course materials to answer this question. Please upload relevant course documents (PDFs) in Study Materials to enable citation-grounded answers."
+            "I could not find relevant information in your uploaded course materials to answer this question. Please upload relevant course documents (PDFs) in Study Materials to enable citation-backed answers."
         )
 
     def _extract_unique_citations(self, chunks: List[RetrievedContextChunk]) -> List[SourceCitation]:
@@ -170,7 +170,7 @@ class RAGService:
                             f"Instructions:\n"
                             f"- Respond naturally, conversationally, and warmly in 1-3 sentences.\n"
                             f"- Acknowledge their greeting politely.\n"
-                            f"- Welcome them and let them know they can ask any academic or concept question, or upload course PDFs in Study Materials for grounded answers with page citations.\n"
+                            f"- Welcome them and let them know they can ask any academic or concept question, or upload course PDFs in Study Materials for citation-backed answers with exact page references.\n"
                             f"- Vary your wording and tone; DO NOT just repeat a generic template formula."
                         )
                     dynamic_greeting = self.llm_service.generate(prompt).strip()
@@ -202,7 +202,7 @@ class RAGService:
                 ]
             else:
                 varied_greetings = [
-                    "Hello! Great to connect with you. I'm your CodeKnot AI Tutor. Feel free to ask any academic question right here, or upload your course materials in Study Materials for grounded answers with exact citations!",
+                    "Hello! Great to connect with you. I'm your CodeKnot AI Tutor. Feel free to ask any academic question right here, or upload your course materials in Study Materials for citation-backed answers from your exact notes!",
                     "Hey there! Welcome to CodeKnot. How can I assist you with your studies today? You can ask concept questions directly or upload your syllabus PDFs for personalized exam preparation.",
                     "Hi! Ready to learn? Ask me any questions you're working on, or head over to Study Materials to upload your notes so I can cite your exact course syllabus.",
                     "Welcome! I'm here to help you master tricky concepts, test your exam readiness, and walk through problems step by step. What subject are we working on today?",
@@ -356,7 +356,41 @@ class RAGService:
         )
 
         if not chunks:
-            practice_text = '{"questions":[],"insufficient":true,"message":"I could not find enough relevant information in your uploaded PDF to generate practice questions on this topic. Please upload or select material that covers this topic."}'
+            if document_ids:
+                practice_text = '{"questions":[],"insufficient":true,"message":"I could not find enough relevant information in your uploaded PDF to generate practice questions on this topic. Please upload or select material that covers this topic."}'
+                return RAGResponse(
+                    answer=practice_text,
+                    sources=[],
+                    retrieved_chunks=0,
+                    is_grounded=False,
+                    question=topic,
+                )
+
+            general_practice_prompt = (
+                f"You are CodeKnot AI Tutor. Generate 3 high-quality multiple-choice exam practice questions for university students on the topic: '{topic.strip()}'.\n"
+                f"Return ONLY valid JSON (no markdown code fences) in this exact format:\n"
+                f'{{"questions":[{{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct_option_index":0,"explanation":"Clear explanation of why this answer is correct."}}],"insufficient":false,"message":""}}'
+            )
+            try:
+                raw_resp = self.llm_service.generate(general_practice_prompt).strip()
+                if raw_resp.startswith("```"):
+                    lines = raw_resp.splitlines()
+                    if lines and lines[0].startswith("```"):
+                        lines = lines[1:]
+                    if lines and lines[-1].strip() == "```":
+                        lines = lines[:-1]
+                    raw_resp = "\n".join(lines).strip()
+                practice_text = raw_resp
+            except Exception:
+                safe_topic = topic.strip().replace('"', "'")
+                practice_text = (
+                    f'{{"questions":[{{"question":"Which strategy is most effective when mastering {safe_topic} for exams?",'
+                    f'"options":["A) Understanding core principles, edge cases, and practical applications",'
+                    f'"B) Memorizing isolated terms without understanding context",'
+                    f'"C) Skipping foundational definitions","D) Avoiding practice problems"],'
+                    f'"correct_option_index":0,"explanation":"Deep understanding of core principles and active problem-solving leads to strong exam performance."}}],'
+                    f'"insufficient":false,"message":""}}'
+                )
             return RAGResponse(
                 answer=practice_text,
                 sources=[],
@@ -370,7 +404,14 @@ class RAGService:
             topic=topic,
             chunks=chunks,
         )
-        practice_text = self.llm_service.generate(prompt)
+        practice_text = self.llm_service.generate(prompt).strip()
+        if practice_text.startswith("```"):
+            lines = practice_text.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            practice_text = "\n".join(lines).strip()
 
         return RAGResponse(
             answer=practice_text,

@@ -1,124 +1,507 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Minimize2, Bot, Send } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  Minimize2,
+  Bot,
+  Send,
+  Trash2,
+  Sparkles,
+  HelpCircle,
+  Target,
+  BookOpen,
+} from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
-import { api } from '../../api/client'
-import type { TutorAskResponse } from '../../types/api'
+import { InteractivePracticeDrill, parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
+import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
+import type { TutorAskResponse, TutorMode, SourceCitation, TutorChatMessageItem } from '../../types/api'
+
+interface ChatMessage {
+  id: string
+  sender: 'student' | 'tutor'
+  text: string
+  citations?: SourceCitation[]
+  grounded?: boolean
+  timestamp: string
+}
+
+const INITIAL_WELCOME: ChatMessage = {
+  id: 'focus-init',
+  sender: 'tutor',
+  text: 'Welcome to Focus Mode. Distractions are minimized so you can concentrate deeply on your course concepts, step-by-step problem hints, and practice drills.',
+  grounded: false,
+  citations: [],
+  timestamp: 'Just now',
+}
 
 export const DistractionFreeTutorPage: React.FC = () => {
+  const navigate = useNavigate()
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_WELCOME])
   const [question, setQuestion] = useState('')
+  const [mode, setMode] = useState<TutorMode>('qa')
   const [isLoading, setIsLoading] = useState(false)
-  const [response, setResponse] = useState<TutorAskResponse | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string>('')
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
 
-  const handleAsk = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!question.trim() || isLoading) return
+  const wsRef = useRef<WebSocket | null>(null)
+  const heartbeatTimerRef = useRef<number | null>(null)
+  const reconnectTimeoutRef = useRef<number | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-    setIsLoading(true)
-    try {
-      const res = await api.tutor.ask({
-        question: question.trim(),
-        mode: 'qa',
+  // Auto-scroll chat to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isLoading])
+
+  // Handle Esc key to exit focus mode back to standard tutor workspace
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        navigate('/tutor')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [navigate])
+
+  // 1. Initial Load: Fetch Persistent Chat History from Database
+  useEffect(() => {
+    api.tutor
+      .getHistory(50)
+      .then((history: TutorChatMessageItem[]) => {
+        if (history && history.length > 0) {
+          const formatted: ChatMessage[] = history.map((item) => ({
+            id: item.id,
+            sender: item.sender,
+            text: item.text,
+            citations: item.citations || [],
+            grounded: item.grounded ?? true,
+            timestamp: item.timestamp
+              ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'Earlier',
+          }))
+          setMessages(formatted)
+        }
       })
-      setResponse(res)
-    } catch (err) {
-      console.warn('Tutor error:', err)
+      .catch((err) => {
+        console.warn('Could not pre-fetch tutor chat history in focus mode:', err)
+      })
+  }, [])
+
+  // 2. Real-Time WebSocket Connection to Synchronize Chat History
+  useEffect(() => {
+    let isMounted = true
+
+    const connectWebSocket = () => {
+      const token = getAuthToken()
+      if (!token) {
+        setWsStatus('disconnected')
+        return
+      }
+
+      const wsBase = getWsBaseUrl()
+      const wsUrl = `${wsBase}/api/v1/tutor/ws?token=${encodeURIComponent(token)}`
+
+      try {
+        setWsStatus('connecting')
+        const ws = new WebSocket(wsUrl)
+        wsRef.current = ws
+
+        ws.onopen = () => {
+          if (!isMounted) return
+          setWsStatus('connected')
+
+          if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+          heartbeatTimerRef.current = window.setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }))
+            }
+          }, 25000)
+        }
+
+        ws.onmessage = (event) => {
+          if (!isMounted) return
+          try {
+            const data = JSON.parse(event.data)
+
+            if (data.type === 'history' && Array.isArray(data.messages)) {
+              if (data.messages.length > 0) {
+                const formatted: ChatMessage[] = data.messages.map((item: TutorChatMessageItem) => ({
+                  id: item.id,
+                  sender: item.sender,
+                  text: item.text,
+                  citations: item.citations || [],
+                  grounded: item.grounded ?? true,
+                  timestamp: item.timestamp
+                    ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : 'Earlier',
+                }))
+                setMessages(formatted)
+              }
+            } else if (data.type === 'status') {
+              setStatusMessage(data.message || 'Consulting verified course material...')
+            } else if (data.type === 'answer') {
+              setIsLoading(false)
+              setStatusMessage('')
+              const tutorMsg: ChatMessage = {
+                id: data.id || `tut-${Date.now()}`,
+                sender: 'tutor',
+                text: data.text,
+                citations: data.citations || [],
+                grounded: data.grounded ?? true,
+                timestamp: data.timestamp
+                  ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }
+              setMessages((prev) => [...prev, tutorMsg])
+            } else if (data.type === 'history_cleared') {
+              setMessages([INITIAL_WELCOME])
+              setIsLoading(false)
+            } else if (data.type === 'error') {
+              setIsLoading(false)
+              setStatusMessage('')
+              const errorMsg: ChatMessage = {
+                id: `err-${Date.now()}`,
+                sender: 'tutor',
+                text: `Tutor error: ${data.message || 'Could not process question.'}`,
+                grounded: false,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }
+              setMessages((prev) => [...prev, errorMsg])
+            }
+          } catch (parseErr) {
+            console.error('[Focus Tutor WS] Error parsing message:', parseErr)
+          }
+        }
+
+        ws.onclose = (event) => {
+          if (!isMounted) return
+          setWsStatus('disconnected')
+          if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+
+          if (event.code !== 1000 && event.code !== 1008) {
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              if (isMounted) connectWebSocket()
+            }, 4000)
+          }
+        }
+
+        ws.onerror = () => {
+          setWsStatus('disconnected')
+        }
+      } catch {
+        setWsStatus('disconnected')
+      }
+    }
+
+    connectWebSocket()
+
+    return () => {
+      isMounted = false
+      if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current)
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current)
+      if (wsRef.current) {
+        wsRef.current.close(1000, 'Page unmounted')
+        wsRef.current = null
+      }
+    }
+  }, [])
+
+  // 3. Send Question in Focus Mode
+  const handleAsk = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const cleanText = question.trim()
+    if (!cleanText || isLoading) return
+
+    const userMsg: ChatMessage = {
+      id: `usr-${Date.now()}`,
+      sender: 'student',
+      text: cleanText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }
+
+    setMessages((prev) => [...prev, userMsg])
+    setQuestion('')
+    setIsLoading(true)
+
+    const loadingLabel =
+      mode === 'practice'
+        ? 'Generating interactive practice questions from course materials...'
+        : mode === 'hint'
+        ? 'Synthesizing Socratic hint without spoiling the answer...'
+        : 'Consulting verified course documents and finding citations...'
+
+    setStatusMessage(loadingLabel)
+
+    // Attempt WebSocket transmission if connected
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'question',
+          question: cleanText,
+          mode,
+        })
+      )
+      return
+    }
+
+    // HTTP Fallback
+    try {
+      const res: TutorAskResponse = await api.tutor.ask({
+        question: cleanText,
+        mode,
+      })
+
+      const tutorMsg: ChatMessage = {
+        id: `tut-${Date.now()}`,
+        sender: 'tutor',
+        text: res.answer,
+        citations: res.citations || [],
+        grounded: res.grounded,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+
+      setMessages((prev) => [...prev, tutorMsg])
+    } catch (err: unknown) {
+      const errorMsg: ChatMessage = {
+        id: `err-${Date.now()}`,
+        sender: 'tutor',
+        text: `Error contacting tutor service: ${err instanceof Error ? err.message : 'Unknown error'}. Please ensure documents are uploaded.`,
+        grounded: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+      setMessages((prev) => [...prev, errorMsg])
     } finally {
       setIsLoading(false)
+      setStatusMessage('')
+    }
+  }
+
+  // Handle Enter to submit, Shift+Enter for new line
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleAsk()
+    }
+  }
+
+  // Clear Chat History
+  const handleClearHistory = async () => {
+    if (!window.confirm('Clear all conversation history in Focus Mode?')) return
+
+    try {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'clear_history' }))
+      }
+      await api.tutor.clearHistory().catch(() => {})
+      setMessages([INITIAL_WELCOME])
+    } catch (err) {
+      console.warn('Error clearing chat history:', err)
+      setMessages([INITIAL_WELCOME])
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFDFE] text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
       {/* Top Minimal Bar */}
-      <div className="h-16 px-6 border-b border-slate-200/80 flex items-center justify-between bg-white sticky top-0 z-30">
+      <div className="h-16 px-6 border-b border-slate-200/90 flex items-center justify-between bg-white sticky top-0 z-30 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
             <Bot className="w-4 h-4" />
           </div>
-          <div>
+          <div className="flex items-center gap-2">
             <span className="font-bold text-sm text-slate-900">Distraction-Free AI Tutor</span>
-            <span className="ml-2 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
               Focus Mode
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                wsStatus === 'connected'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  wsStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                }`}
+              />
+              {wsStatus === 'connected' ? 'Live' : 'HTTP'}
             </span>
           </div>
         </div>
 
-        <Link to="/tutor">
-          <Button variant="outline" size="sm" leftIcon={<Minimize2 className="w-4 h-4" />}>
-            Exit Focus View (Esc)
-          </Button>
-        </Link>
+        {/* Action Controls */}
+        <div className="flex items-center gap-3">
+          {/* Mode Selector */}
+          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setMode('qa')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
+                mode === 'qa' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>Concept Q&A</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('hint')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
+                mode === 'hint' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <HelpCircle className="w-3 h-3" />
+              <span>Socratic Hint</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('practice')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
+                mode === 'practice' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Target className="w-3 h-3" />
+              <span>Practice Drill</span>
+            </button>
+          </div>
+
+          {/* Clear Chat */}
+          <button
+            type="button"
+            onClick={handleClearHistory}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 text-xs font-medium transition-colors"
+            title="Clear all chat messages"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Clear Chat</span>
+          </button>
+
+          {/* Exit Focus Mode */}
+          <Link to="/tutor">
+            <Button variant="outline" size="sm" leftIcon={<Minimize2 className="w-4 h-4" />}>
+              Exit Focus View (Esc)
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Main Focus Canvas */}
-      <div className="flex-1 max-w-4xl w-full mx-auto p-6 md:p-12 flex flex-col justify-between space-y-8">
-        {/* Tutor Response Area */}
-        <div className="flex-1 overflow-y-auto space-y-6">
-          {response ? (
-            <div className="p-8 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <CitationBadge grounded={response.grounded} citationsCount={response.citations?.length} />
-                <span className="text-xs text-slate-400">Verified Course Synthesis</span>
-              </div>
+      {/* Main Focus Canvas: Full Conversation History */}
+      <div className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-8 flex flex-col justify-between space-y-6">
+        {/* Tutor Response Scrollable History */}
+        <div className="flex-1 overflow-y-auto space-y-5">
+          {messages.map((msg) => {
+            const parsedDrill = msg.sender === 'tutor' ? parsePracticeDrillJson(msg.text) : null
 
-              <div className="text-sm font-semibold text-slate-900 bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                {response.question}
-              </div>
-
-              <div className="text-sm sm:text-base text-slate-800 leading-relaxed whitespace-pre-wrap font-serif">
-                {response.answer}
-              </div>
-
-              {response.citations && response.citations.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
-                  <span className="text-xs font-bold text-slate-700 block">Verified Source Textbooks:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {response.citations.map((c, i) => (
-                      <div key={i} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                        <div className="font-bold text-indigo-700">Page {c.page_number} ({Math.round(c.similarity_score * 100)}% Match)</div>
-                        <p className="text-slate-600 line-clamp-2 italic">"{c.snippet}"</p>
-                      </div>
-                    ))}
+            if (msg.sender === 'student') {
+              return (
+                <div key={msg.id} className="flex justify-end">
+                  <div className="max-w-2xl rounded-2xl bg-indigo-600 text-white px-5 py-3.5 text-sm sm:text-base shadow-xs rounded-br-xs">
+                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                    <span className="block text-[10px] text-indigo-200 text-right mt-1">
+                      {msg.timestamp}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center text-center p-12 text-slate-400 space-y-3">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Bot className="w-7 h-7" />
+              )
+            }
+
+            return (
+              <div
+                key={msg.id}
+                className="p-6 md:p-8 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <CitationBadge
+                    grounded={msg.grounded ?? false}
+                    citationsCount={msg.citations?.length || 0}
+                  />
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span>Verified Course Synthesis</span>
+                    <span>•</span>
+                    <span>{msg.timestamp}</span>
+                  </div>
+                </div>
+
+                {parsedDrill ? (
+                  <InteractivePracticeDrill data={parsedDrill} />
+                ) : (
+                  <div className="text-sm sm:text-base text-slate-800 leading-relaxed whitespace-pre-wrap font-serif">
+                    {msg.text}
+                  </div>
+                )}
+
+                {msg.citations && msg.citations.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                      Verified Source Textbooks:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {msg.citations.map((c, i) => (
+                        <div
+                          key={i}
+                          className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1"
+                        >
+                          <div className="font-bold text-indigo-700">
+                            Page {c.page_number} ({Math.round(c.similarity_score * 100)}% Match)
+                          </div>
+                          <p className="text-slate-600 line-clamp-2 italic">"{c.snippet}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <h3 className="text-lg font-bold text-slate-800">Clear Mind • Deep Focus</h3>
-              <p className="text-xs text-slate-500 max-w-md">
-                Ask a question about your uploaded study materials. CodeKnot will answer using relevant content when available.
-              </p>
+            )
+          })}
+
+          {isLoading && (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-xs">
+              <LoadingSpinner
+                message={statusMessage || 'Consulting verified course material and synthesizing strict evidence...'}
+              />
             </div>
           )}
 
-          {isLoading && (
-            <div className="p-8 text-center">
-              <LoadingSpinner message="Consulting verified course material and synthesizing strict evidence..." />
-            </div>
-          )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Bar */}
-        <div className="sticky bottom-6">
-          <form onSubmit={handleAsk} className="relative shadow-lg rounded-2xl bg-white border border-slate-300 overflow-hidden">
+        <div className="sticky bottom-4 z-20">
+          <form
+            onSubmit={handleAsk}
+            className="relative shadow-lg rounded-2xl bg-white border border-slate-300 overflow-hidden"
+          >
             <textarea
               rows={2}
-              placeholder="Ask a question without distractions... (Shift + Enter for newline)"
+              placeholder={
+                mode === 'practice'
+                  ? 'Enter a topic for an interactive practice drill... (Shift + Enter for newline)'
+                  : mode === 'hint'
+                  ? 'Describe a problem or question you need a Socratic hint on... (Shift + Enter for newline)'
+                  : 'Ask any conceptual question without distractions... (Shift + Enter for newline)'
+              }
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleTextareaKeyDown}
               className="w-full px-5 py-3.5 text-sm sm:text-base text-slate-900 focus:outline-none placeholder-slate-400 resize-none"
             />
-            <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Grounding: <strong>Course PDFs</strong></span>
-              <Button type="submit" variant="primary" size="sm" isLoading={isLoading} rightIcon={<Send className="w-3.5 h-3.5" />}>
-                Submit Question
+            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>Sources: <strong>Course Library PDFs</strong></span>
+              </span>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                isLoading={isLoading}
+                rightIcon={<Send className="w-3.5 h-3.5" />}
+              >
+                {mode === 'practice' ? 'Generate Drill' : mode === 'hint' ? 'Get Hint' : 'Submit Question'}
               </Button>
             </div>
           </form>
