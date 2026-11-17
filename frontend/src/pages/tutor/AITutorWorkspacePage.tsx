@@ -285,18 +285,17 @@ export const AITutorWorkspacePage: React.FC = () => {
     }
   }
 
-  // 4. Clear Chat History
+  // 4. Clear Chat History via WebSocket and HTTP
   const handleClearHistory = async () => {
-    if (!window.confirm('Are you sure you want to clear your AI Tutor chat history?')) return
+    if (!window.confirm('Clear all conversation history with the AI Tutor?')) return
 
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'clear_history' }))
-      } else {
-        await api.tutor.clearHistory()
-        setMessages([INITIAL_WELCOME])
-        setSelectedCitation(null)
       }
+      await api.tutor.clearHistory().catch(() => {})
+      setMessages([INITIAL_WELCOME])
+      setSelectedCitation(null)
     } catch (err) {
       console.warn('Error clearing chat history:', err)
       setMessages([INITIAL_WELCOME])
@@ -385,14 +384,15 @@ export const AITutorWorkspacePage: React.FC = () => {
               </button>
             </div>
 
-            {/* Clear History Button */}
+            {/* Clear Chat Button */}
             <button
               type="button"
               onClick={handleClearHistory}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-              title="Clear Chat History"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 text-xs font-semibold shadow-2xs transition-all"
+              title="Clear all chat messages and reset conversation"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-500" />
+              <span>Clear Chat</span>
             </button>
 
             {/* Distraction-Free Mode */}

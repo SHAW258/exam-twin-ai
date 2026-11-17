@@ -41,6 +41,10 @@ export const getWsBaseUrl = (): string => {
     return API_BASE_URL.replace('http://', 'ws://')
   }
   if (typeof window !== 'undefined') {
+    // In local development, connect directly to backend port 8000 for stable WebSocket streams
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'ws://127.0.0.1:8000'
+    }
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     return `${proto}//${window.location.host}`
   }
