@@ -226,7 +226,9 @@ def get_current_student(
 
     mgr = db_manager or get_db_manager()
     with mgr.get_session() as session:
-        stmt = select(Student).where(Student.external_student_id == external_student_id)
+        stmt = select(Student).where(
+            (Student.external_student_id == external_student_id) | (Student.email == external_student_id)
+        )
         student = session.execute(stmt).scalars().first()
 
         if student is None:

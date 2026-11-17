@@ -334,11 +334,11 @@ def register_student(
         session.add(new_student)
         session.flush()
 
-        access_token = create_access_token(data={"sub": username})
+        access_token = create_access_token(data={"sub": new_student.external_student_id})
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
-            student_id=username,
+            student_id=new_student.external_student_id,
             expires_in_minutes=getattr(settings, "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", 1440),
         )
 
@@ -376,11 +376,11 @@ def login_student(
                 detail="Student account has been deactivated.",
             )
 
-        access_token = create_access_token(data={"sub": username})
+        access_token = create_access_token(data={"sub": student.external_student_id})
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
-            student_id=username,
+            student_id=student.external_student_id,
             expires_in_minutes=getattr(settings, "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", 1440),
         )
 
