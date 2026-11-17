@@ -5,6 +5,7 @@ citation-backed answers, hints, and practice questions for students.
 """
 
 import logging
+import random
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
@@ -114,9 +115,24 @@ class RAGService:
 
         cleaned_question = question.strip()
 
-        # Step 0: Check for conversational greeting
+        # Step 0: Check for conversational greeting or normal communication
         normalized = cleaned_question.lower().strip("!?., ")
-        if normalized in {"hi", "hello", "hey", "hola", "good morning", "good evening", "greetings", "help", "who are you"}:
+        greeting_patterns = [
+            "hi", "hello", "hey", "hola", "howdy", "sup", "yo",
+            "good morning", "good afternoon", "good evening", "good day",
+            "greetings", "how are you", "how're you", "how r u", "how do you do",
+            "how are things", "how's it going", "hows it going", "what's up", "whats up",
+            "who are you", "what can you do", "who made you", "help", "thank you", "thanks",
+            "nice to meet", "ok", "okay", "tell me about yourself",
+        ]
+        tokens = normalized.split()
+        is_greeting = (
+            normalized in greeting_patterns
+            or (len(tokens) <= 8 and any(p in normalized for p in greeting_patterns))
+            or (len(tokens) <= 4 and tokens[0] in {"hi", "hello", "hey", "greetings"})
+        )
+
+        if is_greeting:
             doc_titles = []
             try:
                 db_mgr = getattr(getattr(self.retriever, "vector_store", None), "db_manager", None)
@@ -131,6 +147,45 @@ class RAGService:
             except Exception:
                 pass
 
+            # Try generating dynamic, natural, non-repetitive response using LLM
+            if hasattr(self, "llm_service") and self.llm_service:
+                try:
+                    if doc_titles:
+                        docs_str = ", ".join(f"'{d}'" for d in doc_titles[:3])
+                        prompt = (
+                            f"You are CodeKnot AI Tutor, an engaging, friendly, and supportive university academic tutor.\n"
+                            f"The student sent a conversational message: \"{cleaned_question}\".\n"
+                            f"The student has uploaded these study materials: {docs_str}.\n\n"
+                            f"Instructions:\n"
+                            f"- Respond naturally, conversationally, and warmly in 1-3 sentences.\n"
+                            f"- Acknowledge their message politely.\n"
+                            f"- Mention that their course material is loaded and invite them to ask about any concept or topic.\n"
+                            f"- Vary your wording and tone; DO NOT just repeat a generic template formula."
+                        )
+                    else:
+                        prompt = (
+                            f"You are CodeKnot AI Tutor, an engaging, friendly, and supportive university academic tutor.\n"
+                            f"The student sent a conversational message: \"{cleaned_question}\".\n"
+                            f"The student has not uploaded any course PDFs yet.\n\n"
+                            f"Instructions:\n"
+                            f"- Respond naturally, conversationally, and warmly in 1-3 sentences.\n"
+                            f"- Acknowledge their greeting politely.\n"
+                            f"- Welcome them and let them know they can ask any academic or concept question, or upload course PDFs in Study Materials for grounded answers with page citations.\n"
+                            f"- Vary your wording and tone; DO NOT just repeat a generic template formula."
+                        )
+                    dynamic_greeting = self.llm_service.generate(prompt).strip()
+                    if dynamic_greeting:
+                        return RAGResponse(
+                            answer=dynamic_greeting,
+                            sources=[],
+                            retrieved_chunks=0,
+                            is_grounded=bool(doc_titles),
+                            question=cleaned_question,
+                        )
+                except Exception as exc:
+                    logger.debug("Dynamic LLM greeting generation fallback: %s", exc)
+
+            # Fallback to rich, randomized greeting pool if LLM is offline or unconfigured
             if doc_titles:
                 doc_name = doc_titles[0]
                 display_doc = doc_name.replace(".pdf", "")
@@ -138,26 +193,27 @@ class RAGService:
                     parts = display_doc.split("_")
                     display_doc = "_".join(parts[2:]) if len(parts) > 2 else parts[-1]
                 display_doc = display_doc.replace("_", " ").strip() or doc_name
-
-                greeting = (
-                    f"Hello! I am your CodeKnot AI Tutor. I have indexed your document: **{display_doc}**.\n\n"
-                    f"To test my evidence-grounded tutoring, please ask a specific question from your course syllabus rather than saying \"hi\"! For example, try:\n\n"
-                    f"1. **\"What topics are covered in Cyber Security?\"**\n"
-                    f"2. **\"Explain the CIA Triad from the syllabus.\"**\n"
-                    f"3. **\"What is covered under Unit-IV IP Security?\"**\n\n"
-                    f"Type any course question below and I will cite the exact pages!"
-                )
+                varied_greetings = [
+                    f"Hello! Great to connect with you. I'm ready to help you study **{display_doc}**—what concept or topic should we explore today?",
+                    f"Hey there! Ready for today's study session? Feel free to ask any question from **{display_doc}**, request a Socratic hint, or start a practice drill.",
+                    f"Hi! Hope your study session is going well. I have your material for **{display_doc}** loaded—what can I explain or clarify for you?",
+                    f"Welcome back! I'm here to help you master **{display_doc}**. Ask me any conceptual question and I will cite the exact pages for you.",
+                    f"Hey! Good to see you. How can I assist with your preparation on **{display_doc}** today?",
+                ]
             else:
-                greeting = (
-                    "Hello! I am your CodeKnot AI Tutor. Please upload course materials (PDFs) in "
-                    "Study Materials so I can provide citation-grounded tutoring on your specific syllabus."
-                )
-
+                varied_greetings = [
+                    "Hello! Great to connect with you. I'm your CodeKnot AI Tutor. Feel free to ask any academic question right here, or upload your course materials in Study Materials for grounded answers with exact citations!",
+                    "Hey there! Welcome to CodeKnot. How can I assist you with your studies today? You can ask concept questions directly or upload your syllabus PDFs for personalized exam preparation.",
+                    "Hi! Ready to learn? Ask me any questions you're working on, or head over to Study Materials to upload your notes so I can cite your exact course syllabus.",
+                    "Welcome! I'm here to help you master tricky concepts, test your exam readiness, and walk through problems step by step. What subject are we working on today?",
+                    "Hey! Glad you're here. You can ask me any study questions or upload your course PDFs to get citation-backed answers tailored to your curriculum.",
+                ]
+            chosen_greeting = random.choice(varied_greetings)
             return RAGResponse(
-                answer=greeting,
+                answer=chosen_greeting,
                 sources=[],
                 retrieved_chunks=0,
-                is_grounded=True,
+                is_grounded=bool(doc_titles),
                 question=cleaned_question,
             )
 
