@@ -358,7 +358,9 @@ def login_student(
 
     with db_manager.get_session() as session:
         student = session.execute(
-            select(Student).where(Student.external_student_id == username)
+            select(Student).where(
+                (Student.external_student_id == username) | (Student.email == username.lower())
+            )
         ).scalars().first()
 
         if student is None or not verify_password(payload.password, student.hashed_password):
