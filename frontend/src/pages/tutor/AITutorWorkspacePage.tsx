@@ -29,7 +29,7 @@ const INITIAL_WELCOME: ChatMessage = {
   id: 'msg-init',
   sender: 'tutor',
   text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are available, I use them to provide grounded answers.\n\nAsk a question, request a Socratic hint, or start a practice drill.',
-  grounded: true,
+  grounded: false,
   citations: [],
   timestamp: 'Just now',
 }

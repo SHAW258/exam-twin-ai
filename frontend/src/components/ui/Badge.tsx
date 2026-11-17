@@ -1,4 +1,5 @@
 import React from 'react'
+import { BookOpen, Sparkles, CheckCircle2 } from 'lucide-react'
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: 'default' | 'success' | 'warning' | 'error' | 'indigo' | 'slate'
@@ -43,24 +44,45 @@ export interface CitationBadgeProps {
 }
 
 export const CitationBadge: React.FC<CitationBadgeProps> = ({ grounded, citationsCount = 0, className = '' }) => {
+  if (grounded && citationsCount > 0) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs ${className}`}
+      >
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+        </span>
+        <BookOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Grounded in Course Material</span>
+        <span className="ml-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+          {citationsCount} {citationsCount === 1 ? 'citation' : 'citations'}
+        </span>
+      </span>
+    )
+  }
+
   if (grounded) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 ${className}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs ${className}`}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        Grounded in Course Material
-        {citationsCount > 0 && <span className="text-emerald-600 font-normal">({citationsCount} citations)</span>}
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+        </span>
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+        <span>Grounded in Course Material</span>
       </span>
     )
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 ${className}`}
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50/90 text-indigo-700 border border-indigo-200/80 shadow-2xs ${className}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-      General Principles (Ungrounded)
+      <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+      <span>General Academic Knowledge</span>
     </span>
   )
 }
