@@ -7,15 +7,63 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from sqlalchemy import select
 
 from src.api.auth import decode_access_token, get_current_student
-from src.api.schemas import SourceCitationResponse, TutorAskRequest, TutorAskResponse
+from src.api.schemas import AIPracticeRecordResponse, SourceCitationResponse, TutorAskRequest, TutorAskResponse
 from src.database.connection import DatabaseManager, get_db_manager
-from src.database.models import TutorChatMessage
+from src.database.models import AIPracticeRecord, TutorChatMessage
 from src.learner_state.models import Student
 from src.rag.rag_service import get_rag_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tutor", tags=["AI Tutor"])
+
+
+def _source_kind_of(result: Any) -> str:
+    """Read provenance defensively (mocks and older RAG results may not provide a string)."""
+    kind = getattr(result, "source_kind", "own_document")
+    return kind if isinstance(kind, str) and kind else "own_document"
+
+
+def _count_generated_questions(answer_text: str) -> int:
+    """Count MCQs in a generated drill JSON string, tolerating markdown fences."""
+    cleaned = (answer_text or "").strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    try:
+        payload = json.loads(cleaned)
+        questions = payload.get("questions") if isinstance(payload, dict) else None
+        return len(questions) if isinstance(questions, list) else 0
+    except Exception:
+        return 0
+
+
+def _record_ai_practice(
+    db_manager: DatabaseManager,
+    student_id: str,
+    topic: str,
+    answer_text: str,
+) -> Optional[str]:
+    """Log a drill that Gemini produced because no PDF was available for the topic."""
+    try:
+        with db_manager.get_session() as session:
+            record = AIPracticeRecord(
+                student_id=student_id,
+                topic=(topic or "General")[:255],
+                mode="practice",
+                question_count=_count_generated_questions(answer_text),
+                source_kind="general_ai",
+            )
+            session.add(record)
+            session.flush()
+            return record.id
+    except Exception as exc:
+        logger.warning("Could not record AI practice session: %s", exc)
+        return None
 
 
 @router.post(
@@ -65,30 +113,42 @@ def ask_ai_tutor(
         for c in (result.sources or [])
     ]
 
-    # Persist question and response in database for previous chat history
-    try:
-        with db_manager.get_session() as session:
-            # 1. Student query
-            msg_student = TutorChatMessage(
-                student_id=student_id,
-                sender="student",
-                text=payload.question,
-                mode=mode,
-            )
-            session.add(msg_student)
+    # A drill with no PDF anywhere is still interactive, but must be logged as AI practice.
+    practice_record_id: Optional[str] = None
+    if mode == "practice" and getattr(result, "source_kind", "") == "general_ai":
+        practice_record_id = _record_ai_practice(
+            db_manager,
+            student_id,
+            payload.topic or payload.question,
+            result.answer,
+        )
 
-            # 2. Tutor response
-            msg_tutor = TutorChatMessage(
-                student_id=student_id,
-                sender="tutor",
-                text=result.answer,
-                mode=mode,
-                grounded=result.is_grounded,
-                citations=json.dumps([c.model_dump() for c in citations]),
-            )
-            session.add(msg_tutor)
-    except Exception as exc:
-        logger.warning("Could not persist chat message to history: %s", exc)
+    # Persist conversational messages only. Practice drills belong to the full quiz view,
+    # so they are never written into the AI Tutor chat history.
+    if mode != "practice":
+        try:
+            with db_manager.get_session() as session:
+                # 1. Student query
+                msg_student = TutorChatMessage(
+                    student_id=student_id,
+                    sender="student",
+                    text=payload.question,
+                    mode=mode,
+                )
+                session.add(msg_student)
+
+                # 2. Tutor response
+                msg_tutor = TutorChatMessage(
+                    student_id=student_id,
+                    sender="tutor",
+                    text=result.answer,
+                    mode=mode,
+                    grounded=result.is_grounded,
+                    citations=json.dumps([c.model_dump() for c in citations]),
+                )
+                session.add(msg_tutor)
+        except Exception as exc:
+            logger.warning("Could not persist chat message to history: %s", exc)
 
     return TutorAskResponse(
         question=result.question,
@@ -96,7 +156,31 @@ def ask_ai_tutor(
         mode=mode,
         citations=citations,
         grounded=result.is_grounded,
+        source_kind=_source_kind_of(result),
+        practice_record_id=practice_record_id,
     )
+
+
+@router.get(
+    "/ai-practice",
+    response_model=List[AIPracticeRecordResponse],
+    summary="List topics practised with AI when no PDF was available",
+)
+def get_ai_practice_records(
+    limit: int = 20,
+    current_student: Student = Depends(get_current_student),
+    db_manager: DatabaseManager = Depends(get_db_manager),
+) -> List[AIPracticeRecordResponse]:
+    """Return this student's no-PDF AI practice history, newest first."""
+    student_id = current_student.external_student_id
+    with db_manager.get_session() as session:
+        stmt = (
+            select(AIPracticeRecord)
+            .where(AIPracticeRecord.student_id == student_id)
+            .order_by(AIPracticeRecord.created_at.desc())
+            .limit(max(1, min(limit, 100)))
+        )
+        return [AIPracticeRecordResponse(**record.to_dict()) for record in session.execute(stmt).scalars().all()]
 
 
 @router.get(
@@ -232,21 +316,22 @@ async def tutor_websocket(
                 topic = data.get("topic")
                 doc_ids = data.get("document_ids")
 
-                # 1. Persist student message in DB
+                # 1. Persist student message in DB (practice drills stay out of tutor chat)
                 student_msg_dict = None
-                try:
-                    with db_manager.get_session() as session:
-                        msg_student = TutorChatMessage(
-                            student_id=student_id,
-                            sender="student",
-                            text=user_question,
-                            mode=mode,
-                        )
-                        session.add(msg_student)
-                        session.flush()
-                        student_msg_dict = msg_student.to_dict()
-                except Exception as exc:
-                    logger.warning("Error saving student message on WS: %s", exc)
+                if mode != "practice":
+                    try:
+                        with db_manager.get_session() as session:
+                            msg_student = TutorChatMessage(
+                                student_id=student_id,
+                                sender="student",
+                                text=user_question,
+                                mode=mode,
+                            )
+                            session.add(msg_student)
+                            session.flush()
+                            student_msg_dict = msg_student.to_dict()
+                    except Exception as exc:
+                        logger.warning("Error saving student message on WS: %s", exc)
 
                 # 2. Send status notification
                 await websocket.send_json({
@@ -282,6 +367,15 @@ async def tutor_websocket(
                 import anyio
                 result = await anyio.to_thread.run_sync(run_rag)
 
+                practice_record_id = None
+                if mode == "practice" and getattr(result, "source_kind", "") == "general_ai":
+                    practice_record_id = _record_ai_practice(
+                        db_manager,
+                        student_id,
+                        topic or user_question,
+                        result.answer,
+                    )
+
                 citations_list = [
                     {
                         "source_path": getattr(c, "source", None) or getattr(c, "source_path", "course_material.pdf"),
@@ -293,23 +387,24 @@ async def tutor_websocket(
                     for c in (result.sources or [])
                 ]
 
-                # 4. Persist tutor response in DB
+                # 4. Persist tutor response in DB (practice drills stay out of tutor chat)
                 tutor_msg_dict = None
-                try:
-                    with db_manager.get_session() as session:
-                        msg_tutor = TutorChatMessage(
-                            student_id=student_id,
-                            sender="tutor",
-                            text=result.answer,
-                            mode=mode,
-                            grounded=result.is_grounded,
-                            citations=json.dumps(citations_list),
-                        )
-                        session.add(msg_tutor)
-                        session.flush()
-                        tutor_msg_dict = msg_tutor.to_dict()
-                except Exception as exc:
-                    logger.warning("Error saving tutor response on WS: %s", exc)
+                if mode != "practice":
+                    try:
+                        with db_manager.get_session() as session:
+                            msg_tutor = TutorChatMessage(
+                                student_id=student_id,
+                                sender="tutor",
+                                text=result.answer,
+                                mode=mode,
+                                grounded=result.is_grounded,
+                                citations=json.dumps(citations_list),
+                            )
+                            session.add(msg_tutor)
+                            session.flush()
+                            tutor_msg_dict = msg_tutor.to_dict()
+                    except Exception as exc:
+                        logger.warning("Error saving tutor response on WS: %s", exc)
 
                 # 5. Send complete response to client
                 await websocket.send_json({
@@ -319,6 +414,8 @@ async def tutor_websocket(
                     "mode": mode,
                     "grounded": result.is_grounded,
                     "citations": citations_list,
+                    "source_kind": _source_kind_of(result),
+                    "practice_record_id": practice_record_id,
                     "timestamp": tutor_msg_dict["timestamp"] if tutor_msg_dict else None,
                 })
 

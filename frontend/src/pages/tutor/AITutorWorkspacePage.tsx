@@ -11,17 +11,28 @@ import {
   CheckCircle2,
   Sparkles,
   HelpCircle,
-  Target,
   Copy,
   Check,
+  Globe,
+  History,
 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
-import { InteractivePracticeDrill, parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
+import { parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
 import { MarkdownMessage } from '../../components/tutor/MarkdownMessage'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
-import type { TutorAskResponse, TutorMode, DocumentListItem, SourceCitation, TutorChatMessageItem } from '../../types/api'
+import type {
+  TutorAskResponse,
+  TutorMode,
+  TutorSourceKind,
+  DocumentListItem,
+  SourceCitation,
+  TutorChatMessageItem,
+  AIPracticeRecord,
+} from '../../types/api'
+
+type ChatMode = Exclude<TutorMode, 'practice'>
 
 interface ChatMessage {
   id: string
@@ -29,20 +40,34 @@ interface ChatMessage {
   text: string
   citations?: SourceCitation[]
   grounded?: boolean
+  mode?: TutorMode
+  sourceKind?: TutorSourceKind
+  practiceRecordId?: string | null
   timestamp: string
+}
+
+/** Derive provenance for older stored messages that predate the source_kind field. */
+const deriveSourceKind = (item: {
+  grounded?: boolean
+  citations?: SourceCitation[]
+  mode?: string
+}): TutorSourceKind => {
+  if (!item.grounded) return item.mode === 'practice' ? 'general_ai' : 'none'
+  if (!item.citations || item.citations.length === 0) return 'global_document'
+  return 'own_document'
 }
 
 const INITIAL_WELCOME: ChatMessage = {
   id: 'msg-init',
   sender: 'tutor',
-  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are uploaded, I cite exact pages from your course notes.\n\nChoose a mode above: ask a conceptual question, request a Socratic hint, or launch an interactive practice drill.',
+  text: 'Hello! I am your CodeKnot AI Tutor. When your study materials are uploaded, I cite exact pages from your course notes.\n\nChoose a mode above to ask a conceptual question or request a Socratic hint.',
   grounded: false,
   citations: [],
   timestamp: 'Just now',
 }
 
 const MODE_CONFIG: Record<
-  TutorMode,
+  ChatMode,
   {
     title: string
     description: string
@@ -78,29 +103,17 @@ const MODE_CONFIG: Record<
       'Hint: When should I choose BFS over DFS?',
     ],
   },
-  practice: {
-    title: 'Practice Drill',
-    description: 'Generates interactive multiple-choice questions with instant scoring, feedback, and answers.',
-    placeholder: 'Enter a topic for an interactive practice drill (e.g., Network Security, Python OOP)...',
-    buttonText: 'Generate Drill',
-    icon: <Target className="w-3.5 h-3.5 text-rose-500" />,
-    chips: [
-      'Practice Drill: Cybersecurity Fundamentals',
-      'Practice Drill: Operating System Concepts',
-      'Practice Drill: Database Indexing & Normalization',
-      'Practice Drill: Data Structures & Algorithms',
-    ],
-  },
 }
 
 export const AITutorWorkspacePage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_WELCOME])
   const [question, setQuestion] = useState('')
-  const [mode, setMode] = useState<TutorMode>('qa')
+  const [mode, setMode] = useState<ChatMode>('qa')
   const [topic, _setTopic] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [documents, setDocuments] = useState<DocumentListItem[]>([])
+  const [aiPracticeRecords, setAiPracticeRecords] = useState<AIPracticeRecord[]>([])
   const [selectedCitation, setSelectedCitation] = useState<SourceCitation | null>(null)
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null)
@@ -124,6 +137,7 @@ export const AITutorWorkspacePage: React.FC = () => {
   // 1. Initial Load: Documents & Persistent Chat History from Database
   useEffect(() => {
     api.documents.list().then(setDocuments).catch(() => {})
+    api.tutor.getAiPractice(10).then(setAiPracticeRecords).catch(() => {})
 
     api.tutor
       .getHistory(50)
@@ -135,6 +149,8 @@ export const AITutorWorkspacePage: React.FC = () => {
             text: item.text,
             citations: item.citations || [],
             grounded: item.grounded ?? true,
+            mode: item.mode,
+            sourceKind: deriveSourceKind(item),
             timestamp: item.timestamp
               ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'Earlier',
@@ -196,6 +212,8 @@ export const AITutorWorkspacePage: React.FC = () => {
                   text: item.text,
                   citations: item.citations || [],
                   grounded: item.grounded ?? true,
+                  mode: item.mode,
+                  sourceKind: deriveSourceKind(item),
                   timestamp: item.timestamp
                     ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : 'Earlier',
@@ -217,6 +235,9 @@ export const AITutorWorkspacePage: React.FC = () => {
                 text: data.text,
                 citations: data.citations || [],
                 grounded: data.grounded ?? true,
+                mode: data.mode,
+                sourceKind: data.source_kind || deriveSourceKind(data),
+                practiceRecordId: data.practice_record_id,
                 timestamp: data.timestamp
                   ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -281,7 +302,7 @@ export const AITutorWorkspacePage: React.FC = () => {
   }, [])
 
   // 3. Send Question Core Helper
-  const sendQuestionDirect = async (textToSend: string, explicitMode?: TutorMode) => {
+  const sendQuestionDirect = async (textToSend: string, explicitMode?: ChatMode) => {
     const activeMode = explicitMode || mode
     const cleanText = textToSend.trim()
     if (!cleanText || isLoading) return
@@ -298,11 +319,9 @@ export const AITutorWorkspacePage: React.FC = () => {
     setIsLoading(true)
 
     const loadingLabel =
-      activeMode === 'practice'
-        ? 'Generating interactive practice questions from course materials...'
-        : activeMode === 'hint'
+      activeMode === 'hint'
         ? 'Synthesizing Socratic hint without spoiling the answer...'
-        : 'Consulting verified course documents and finding citations...'
+        : 'Consulting course documents and finding citations...'
 
     setStatusMessage(loadingLabel)
 
@@ -333,6 +352,9 @@ export const AITutorWorkspacePage: React.FC = () => {
         text: res.answer,
         citations: res.citations || [],
         grounded: res.grounded,
+        mode: res.mode,
+        sourceKind: res.source_kind || deriveSourceKind(res),
+        practiceRecordId: res.practice_record_id,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
 
@@ -378,6 +400,10 @@ export const AITutorWorkspacePage: React.FC = () => {
   }
 
   const currentConfig = MODE_CONFIG[mode]
+  const latestTutorSource = [...messages]
+    .reverse()
+    .find((m) => m.sender === 'tutor' && m.id !== INITIAL_WELCOME.id && m.sourceKind)
+    ?.sourceKind
 
   return (
     <div className="h-[calc(100vh-7rem)] flex flex-col lg:flex-row gap-5 font-sans overflow-hidden">
@@ -423,7 +449,7 @@ export const AITutorWorkspacePage: React.FC = () => {
               </div>
               <p className="text-[11px] text-slate-500">
                 {documents.length > 0
-                  ? `Course Library Active • ${documents.length} Indexed Course PDF${documents.length === 1 ? '' : 's'}`
+                  ? `Your Library • ${documents.length} Indexed PDF${documents.length === 1 ? '' : 's'}`
                   : 'No course materials uploaded yet'}
               </p>
             </div>
@@ -458,19 +484,6 @@ export const AITutorWorkspacePage: React.FC = () => {
                 <HelpCircle className={`w-3.5 h-3.5 ${mode === 'hint' ? 'text-white' : 'text-amber-500'}`} />
                 <span>Socratic Hint</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('practice')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all ${
-                  mode === 'practice'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-                title="Practice Drill: Interactive multiple-choice questions with instant scoring"
-              >
-                <Target className={`w-3.5 h-3.5 ${mode === 'practice' ? 'text-white' : 'text-rose-500'}`} />
-                <span>Practice Drill</span>
-              </button>
             </div>
 
             {/* Clear Chat Button */}
@@ -502,14 +515,6 @@ export const AITutorWorkspacePage: React.FC = () => {
             <span className="font-semibold text-indigo-900">{currentConfig.title}:</span>
             <span className="text-slate-600">{currentConfig.description}</span>
           </div>
-          {mode === 'practice' && (
-            <Link
-              to="/practice"
-              className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline shrink-0"
-            >
-              Launch Full Timed Exam &rarr;
-            </Link>
-          )}
         </div>
 
         {/* Warning Banner if No Documents */}
@@ -517,7 +522,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           <div className="p-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs flex items-center justify-between px-5">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>No course documents uploaded. Upload your syllabus or notes to enable verified page citations.</span>
+              <span>No PDFs in your library yet. You can still use shared course data or general academic guidance.</span>
             </div>
             <Link to="/materials" className="font-bold text-amber-900 hover:underline shrink-0">
               Upload PDF &rarr;
@@ -559,6 +564,8 @@ export const AITutorWorkspacePage: React.FC = () => {
                       <CitationBadge
                         grounded={msg.grounded ?? false}
                         citationsCount={msg.citations?.length || 0}
+                        sourceKind={msg.sourceKind}
+                        mode={msg.mode}
                       />
                     </div>
                     <span className="text-[11px] text-slate-400 shrink-0">{msg.timestamp}</span>
@@ -567,7 +574,10 @@ export const AITutorWorkspacePage: React.FC = () => {
                   {/* Formatted Response Body */}
                   <div className="px-5 py-4">
                     {parsedDrill ? (
-                      <InteractivePracticeDrill data={parsedDrill} />
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 space-y-1">
+                        <p className="font-bold text-slate-800">Older practice record hidden</p>
+                        <p>Quizzes are no longer shown in AI Tutor chat. Use the Practice Setup page to generate a quiz.</p>
+                      </div>
                     ) : (
                       <MarkdownMessage content={msg.text} />
                     )}
@@ -677,8 +687,55 @@ export const AITutorWorkspacePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Right / Citation Inspector Panel */}
-      <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+      {/* Right / Source & Citation Inspector Panel */}
+      <div className="w-full lg:w-96 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 overflow-y-auto">
+        {latestTutorSource && latestTutorSource !== 'own_document' && latestTutorSource !== 'none' && (
+          <div
+            className={`p-3.5 rounded-xl border text-xs space-y-1 ${
+              latestTutorSource === 'global_document'
+                ? 'bg-blue-50 border-blue-200 text-blue-900'
+                : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}
+          >
+            <p className="font-bold flex items-center gap-1.5">
+              {latestTutorSource === 'global_document' ? (
+                <Globe className="w-3.5 h-3.5 text-blue-600" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              )}
+              {latestTutorSource === 'global_document' ? 'Shared Course Data' : 'General Academic Guidance'}
+            </p>
+            <p className="text-[11px] leading-relaxed opacity-90">
+              {latestTutorSource === 'global_document'
+                ? 'This answer used the anonymous shared course database. File names, page numbers, uploaders, and similarity scores are hidden.'
+                : 'This answer did not use a PDF. No-PDF drills are recorded in your AI practice log below.'}
+            </p>
+          </div>
+        )}
+
+        {aiPracticeRecords.length > 0 && (
+          <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-700">
+              <History className="w-3.5 h-3.5 text-slate-500" />
+              AI Practice Log
+            </p>
+            <p className="text-[11px] text-slate-500">Topics practised when no PDF matched.</p>
+            <ul className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+              {aiPracticeRecords.map((record) => (
+                <li
+                  key={record.id}
+                  className="flex items-center justify-between gap-2 text-[11px] rounded-lg bg-white border border-slate-200 px-2.5 py-1.5"
+                >
+                  <span className="font-semibold text-slate-800 truncate">{record.topic}</span>
+                  <span className="text-slate-500 shrink-0">
+                    {record.question_count} Q{record.created_at ? ` · ${new Date(record.created_at).toLocaleDateString()}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -687,7 +744,11 @@ export const AITutorWorkspacePage: React.FC = () => {
             </h3>
           </div>
           <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-            Verified Source
+            {latestTutorSource === 'global_document'
+              ? 'Shared Data'
+              : latestTutorSource === 'general_ai'
+              ? 'General Answer'
+              : 'Verified Source'}
           </span>
         </div>
 

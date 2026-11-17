@@ -69,6 +69,7 @@ class Retriever:
         top_k: Optional[int] = None,
         document_ids: Optional[List[str]] = None,
         min_similarity: Optional[float] = None,
+        include_other_users: bool = False,
     ) -> List[RetrievedContextChunk]:
         """Convert question to embedding and search the vector store for authorized chunks.
 
@@ -78,6 +79,7 @@ class Retriever:
             top_k: Maximum number of ranked chunks to return.
             document_ids: Optional filter restricting search to specific document IDs.
             min_similarity: Minimum cosine similarity required for a chunk to be retained.
+            include_other_users: Search every user's PDFs for the anonymous global fallback.
 
         Returns:
             List of RetrievedContextChunk objects ordered descending by similarity score.
@@ -107,6 +109,7 @@ class Retriever:
                 top_k=k,
                 user_id=user_id,
                 document_ids=document_ids,
+                include_other_users=include_other_users,
             )
             # If search yielded low similarity (< 0.15) and fallback service exists,
             # also search using offline vector (supports documents embedded offline during quota limits)
@@ -119,6 +122,7 @@ class Retriever:
                         top_k=k,
                         user_id=user_id,
                         document_ids=document_ids,
+                        include_other_users=include_other_users,
                     )
                     best_offline = offline_results[0].similarity_score if offline_results else 0
                     best_raw = raw_results[0].similarity_score if raw_results else 0

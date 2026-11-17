@@ -73,6 +73,7 @@ class VectorStore(ABC):
         top_k: int = 5,
         user_id: Optional[str] = None,
         document_ids: Optional[List[str]] = None,
+        include_other_users: bool = False,
     ) -> List[SearchResult]:
         """Perform semantic similarity search with ownership and access boundaries.
 
@@ -81,6 +82,9 @@ class VectorStore(ABC):
             top_k: Maximum number of ranked results to return.
             user_id: Requesting user ID for ownership and access filtering.
             document_ids: Optional filter restricting search to specific document IDs.
+            include_other_users: When True, search every user's documents so the answer can be
+                served from the anonymous global course database. The caller is responsible for
+                hiding all provenance before anything is shown to the student.
 
         Returns:
             List of SearchResult objects ordered descending by similarity score.

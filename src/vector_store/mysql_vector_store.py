@@ -99,14 +99,18 @@ class MySQLVectorStore(VectorStore):
         top_k: int = 5,
         user_id: Optional[str] = None,
         document_ids: Optional[List[str]] = None,
+        include_other_users: bool = False,
     ) -> List[SearchResult]:
         """Perform similarity search with user-ownership and document-level authorization filters.
 
         Filtering rules:
-        1. A user can only access their own documents (owner_user_id == user_id)
+        1. By default a user can only access their own documents (owner_user_id == user_id)
            OR documents flagged as COURSE_SHARED.
         2. If user_id is None, only COURSE_SHARED documents are returned.
         3. If document_ids is specified, only chunks within those documents are considered.
+        4. If include_other_users is True, every user's documents are candidates. This is the
+           anonymous global course database path; the RAG layer strips all provenance before
+           the content is shown to the requesting student.
 
         Candidate retrieval is executed in SQL, followed by application-layer cosine ranking.
 
@@ -115,6 +119,7 @@ class MySQLVectorStore(VectorStore):
             top_k: Number of highest-ranked results to return.
             user_id: Requesting user ID for ownership checks.
             document_ids: Optional list of document IDs to constrain retrieval.
+            include_other_users: Search all users' documents for anonymous global answers.
 
         Returns:
             List of SearchResult objects sorted descending by similarity score.
@@ -128,8 +133,11 @@ class MySQLVectorStore(VectorStore):
                 Document, DocumentChunk.document_id == Document.id
             )
 
-            # Apply access control filters
-            if user_id:
+            # Apply access control filters. The global path intentionally widens the candidate
+            # pool; provenance is removed by the RAG layer before any text reaches the student.
+            if include_other_users:
+                pass
+            elif user_id:
                 query = query.where(
                     or_(
                         Document.owner_user_id == user_id,

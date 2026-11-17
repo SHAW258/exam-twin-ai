@@ -108,6 +108,14 @@ class Settings(BaseSettings):
         ge=500,
         description="Maximum character budget allocated for retrieved context in prompt.",
     )
+    ENABLE_GLOBAL_DOCUMENT_SEARCH: bool = Field(
+        default=True,
+        description=(
+            "When the asking user has no matching PDF of their own, search PDFs uploaded by other "
+            "users as an anonymous global course database. All document names, page numbers and "
+            "similarity scores are stripped from answers and citations in this mode."
+        ),
+    )
 
     # -------------------------------------------------------------------------
     # Machine Learning Error Diagnosis Settings

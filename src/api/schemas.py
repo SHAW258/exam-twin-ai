@@ -215,6 +215,26 @@ class TutorAskResponse(BaseModel):
     mode: str
     citations: List[SourceCitationResponse] = Field(default_factory=list)
     grounded: bool
+    source_kind: str = Field(
+        default="own_document",
+        description="own_document | global_document | general_ai | none",
+    )
+    practice_record_id: Optional[str] = Field(
+        default=None,
+        description="Set when a no-PDF AI practice drill was recorded in the database.",
+    )
+
+
+class AIPracticeRecordResponse(BaseModel):
+    """A logged practice session that used Gemini because no PDF was available."""
+
+    id: str
+    student_id: str
+    topic: str
+    mode: str
+    question_count: int
+    source_kind: str
+    created_at: Optional[str] = None
 
 
 # -----------------------------------------------------------------------------

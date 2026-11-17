@@ -8,6 +8,7 @@ import type {
   TutorAskPayload,
   TutorAskResponse,
   TutorChatMessageItem,
+  AIPracticeRecord,
   DiagnosisPayload,
   DiagnosisResponse,
   ErrorDNASummary,
@@ -283,6 +284,9 @@ export const api = {
 
     getHistory: (limit: number = 50): Promise<TutorChatMessageItem[]> =>
       request<TutorChatMessageItem[]>(`/api/v1/tutor/history?limit=${limit}`),
+
+    getAiPractice: (limit: number = 20): Promise<AIPracticeRecord[]> =>
+      request<AIPracticeRecord[]>(`/api/v1/tutor/ai-practice?limit=${limit}`),
 
     clearHistory: (): Promise<{ status: string; message: string }> =>
       request<{ status: string; message: string }>('/api/v1/tutor/history', {

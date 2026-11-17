@@ -7,7 +7,6 @@ import {
   Trash2,
   Sparkles,
   HelpCircle,
-  Target,
   BookOpen,
   Copy,
   Check,
@@ -15,10 +14,18 @@ import {
 import { Button } from '../../components/ui/Button'
 import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
-import { InteractivePracticeDrill, parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
+import { parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
 import { MarkdownMessage } from '../../components/tutor/MarkdownMessage'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
-import type { TutorAskResponse, TutorMode, SourceCitation, TutorChatMessageItem } from '../../types/api'
+import type {
+  TutorAskResponse,
+  TutorMode,
+  TutorSourceKind,
+  SourceCitation,
+  TutorChatMessageItem,
+} from '../../types/api'
+
+type ChatMode = Exclude<TutorMode, 'practice'>
 
 interface ChatMessage {
   id: string
@@ -26,13 +33,26 @@ interface ChatMessage {
   text: string
   citations?: SourceCitation[]
   grounded?: boolean
+  mode?: TutorMode
+  sourceKind?: TutorSourceKind
   timestamp: string
+}
+
+/** Derive provenance for older stored messages that predate the source_kind field. */
+const deriveSourceKind = (item: {
+  grounded?: boolean
+  citations?: SourceCitation[]
+  mode?: string
+}): TutorSourceKind => {
+  if (!item.grounded) return item.mode === 'practice' ? 'general_ai' : 'none'
+  if (!item.citations || item.citations.length === 0) return 'global_document'
+  return 'own_document'
 }
 
 const INITIAL_WELCOME: ChatMessage = {
   id: 'focus-init',
   sender: 'tutor',
-  text: 'Welcome to Focus Mode. Distractions are minimized so you can concentrate deeply on your course concepts, step-by-step problem hints, and practice drills.',
+  text: 'Welcome to Focus Mode. Distractions are minimized so you can concentrate deeply on your course concepts and step-by-step problem hints.',
   grounded: false,
   citations: [],
   timestamp: 'Just now',
@@ -42,7 +62,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
   const navigate = useNavigate()
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_WELCOME])
   const [question, setQuestion] = useState('')
-  const [mode, setMode] = useState<TutorMode>('qa')
+  const [mode, setMode] = useState<ChatMode>('qa')
   const [isLoading, setIsLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string>('')
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
@@ -87,6 +107,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
             text: item.text,
             citations: item.citations || [],
             grounded: item.grounded ?? true,
+            mode: item.mode,
+            sourceKind: deriveSourceKind(item),
             timestamp: item.timestamp
               ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'Earlier',
@@ -143,6 +165,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
                   text: item.text,
                   citations: item.citations || [],
                   grounded: item.grounded ?? true,
+                  mode: item.mode,
+                  sourceKind: deriveSourceKind(item),
                   timestamp: item.timestamp
                     ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : 'Earlier',
@@ -160,6 +184,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
                 text: data.text,
                 citations: data.citations || [],
                 grounded: data.grounded ?? true,
+                mode: data.mode,
+                sourceKind: data.source_kind || deriveSourceKind(data),
                 timestamp: data.timestamp
                   ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -236,11 +262,9 @@ export const DistractionFreeTutorPage: React.FC = () => {
     setIsLoading(true)
 
     const loadingLabel =
-      mode === 'practice'
-        ? 'Generating interactive practice questions from course materials...'
-        : mode === 'hint'
+      mode === 'hint'
         ? 'Synthesizing Socratic hint without spoiling the answer...'
-        : 'Consulting verified course documents and finding citations...'
+        : 'Consulting course documents and finding citations...'
 
     setStatusMessage(loadingLabel)
 
@@ -269,6 +293,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
         text: res.answer,
         citations: res.citations || [],
         grounded: res.grounded,
+        mode: res.mode,
+        sourceKind: res.source_kind || deriveSourceKind(res),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
 
@@ -366,16 +392,6 @@ export const DistractionFreeTutorPage: React.FC = () => {
               <HelpCircle className="w-3 h-3" />
               <span>Socratic Hint</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setMode('practice')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
-                mode === 'practice' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Target className="w-3 h-3" />
-              <span>Practice Drill</span>
-            </button>
           </div>
 
           {/* Clear Chat */}
@@ -434,6 +450,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
                       <CitationBadge
                         grounded={msg.grounded ?? false}
                         citationsCount={msg.citations?.length || 0}
+                        sourceKind={msg.sourceKind}
+                        mode={msg.mode}
                       />
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
@@ -443,7 +461,10 @@ export const DistractionFreeTutorPage: React.FC = () => {
 
                   <div className="px-6 py-5">
                     {parsedDrill ? (
-                      <InteractivePracticeDrill data={parsedDrill} />
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 space-y-1">
+                        <p className="font-bold text-slate-800">Older practice record hidden</p>
+                        <p>Quizzes are no longer shown in AI Tutor chat. Use the Practice Setup page to generate a quiz.</p>
+                      </div>
                     ) : (
                       <MarkdownMessage content={msg.text} />
                     )}
@@ -518,9 +539,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
             <textarea
               rows={2}
               placeholder={
-                mode === 'practice'
-                  ? 'Enter a topic for an interactive practice drill... (Shift + Enter for newline)'
-                  : mode === 'hint'
+                mode === 'hint'
                   ? 'Describe a problem or question you need a Socratic hint on... (Shift + Enter for newline)'
                   : 'Ask any conceptual question without distractions... (Shift + Enter for newline)'
               }
@@ -541,7 +560,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
                 isLoading={isLoading}
                 rightIcon={<Send className="w-3.5 h-3.5" />}
               >
-                {mode === 'practice' ? 'Generate Drill' : mode === 'hint' ? 'Get Hint' : 'Submit Question'}
+                {mode === 'hint' ? 'Get Hint' : 'Submit Question'}
               </Button>
             </div>
           </form>

@@ -85,6 +85,7 @@ export interface DocumentUploadResponse {
 // AI Tutor
 // ==========================================
 export type TutorMode = 'qa' | 'hint' | 'practice';
+export type TutorSourceKind = 'own_document' | 'global_document' | 'general_ai' | 'none';
 
 export interface TutorAskPayload {
   question: string;
@@ -107,6 +108,8 @@ export interface TutorAskResponse {
   mode: TutorMode;
   citations: SourceCitation[];
   grounded: boolean;
+  source_kind?: TutorSourceKind;
+  practice_record_id?: string | null;
 }
 
 export interface TutorChatMessageItem {
@@ -117,6 +120,16 @@ export interface TutorChatMessageItem {
   grounded?: boolean;
   citations?: SourceCitation[];
   timestamp?: string;
+}
+
+export interface AIPracticeRecord {
+  id: string;
+  student_id: string;
+  topic: string;
+  mode: string;
+  question_count: number;
+  source_kind: string;
+  created_at?: string;
 }
 
 // ==========================================

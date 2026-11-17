@@ -144,14 +144,27 @@ def test_answer_question_no_result_handling(rag_service, mock_llm):
     assert len(mock_llm.call_history) == 0
 
 
-def test_answer_question_security_isolation(test_db_manager, vector_store, embedding_service, rag_service, mock_llm):
-    """Verify user Bob cannot query Alice's private OS document."""
+def test_answer_question_security_isolation(test_db_manager, vector_store, embedding_service, mock_llm):
+    """With the global database disabled, Bob cannot query Alice's private OS document."""
     _seed_os_document(test_db_manager, vector_store, embedding_service)
 
-    # Bob asks about deadlock in Alice's document
-    bob_response = rag_service.answer_question(
-        question="What is deadlock?",
-        user_id="student_bob",  # Unauthorized user
+    # Build a service with strict single-user isolation (anonymous global fallback switched off).
+    strict_retriever = Retriever(
+        vector_store=vector_store,
+        embedding_service=embedding_service,
+        default_top_k=5,
+        default_min_similarity=0.15,
+    )
+    strict_service = RAGService(
+        retriever=strict_retriever,
+        llm_service=mock_llm,
+        prompt_builder=PromptBuilder(),
+        enable_global_document_search=False,
+    )
+
+    bob_response = strict_service.answer_question(
+        question="Deadlock occurs when processes wait indefinitely for resources held by each other",
+        user_id="student_bob",
     )
 
     assert bob_response.is_grounded is False

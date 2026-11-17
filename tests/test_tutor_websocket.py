@@ -4,9 +4,11 @@ import json
 from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from src.api.app import app
 from src.database.connection import DatabaseManager, get_db_manager
+from src.database.models import AIPracticeRecord
 from src.database.schema import create_tables, drop_tables
 
 
@@ -100,6 +102,50 @@ def test_tutor_chat_history_lifecycle(client, alice_auth):
     res_empty = client.get("/api/v1/tutor/history", headers=headers)
     assert res_empty.status_code == 200
     assert len(res_empty.json()) == 0
+
+
+def test_practice_drills_stay_out_of_tutor_chat(client, alice_auth, api_db_manager):
+    """Practice MCQs must never appear in tutor chat history; no-PDF practice is logged instead."""
+    headers = alice_auth["headers"]
+    client.delete("/api/v1/tutor/history", headers=headers)
+
+    drill = json.dumps({
+        "questions": [{
+            "question": "What is a deadlock?",
+            "options": ["A) Waiting cycle", "B) Other"],
+            "correct_option_index": 0,
+            "explanation": "Processes block each other.",
+        }],
+        "insufficient": False,
+        "message": "",
+    })
+    mock_result = MagicMock()
+    mock_result.question = "Operating systems"
+    mock_result.answer = drill
+    mock_result.is_grounded = False
+    mock_result.sources = []
+    mock_result.source_kind = "general_ai"
+
+    with patch("src.api.routers.tutor.get_rag_service") as mock_get_rag:
+        mock_rag_inst = MagicMock()
+        mock_rag_inst.generate_practice_question.return_value = mock_result
+        mock_get_rag.return_value = mock_rag_inst
+        res = client.post(
+            "/api/v1/tutor/ask",
+            headers=headers,
+            json={"question": "Operating systems", "mode": "practice", "topic": "Operating systems"},
+        )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["source_kind"] == "general_ai"
+    assert body["practice_record_id"]
+
+    assert client.get("/api/v1/tutor/history", headers=headers).json() == []
+
+    with api_db_manager.get_session() as session:
+        records = session.execute(select(AIPracticeRecord)).scalars().all()
+        assert any(r.student_id == "alice_ws" and r.topic == "Operating systems" for r in records)
 
 
 def test_tutor_websocket_connection_and_interaction(client, alice_auth):

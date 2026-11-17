@@ -4,9 +4,11 @@ Coordinates Retriever, PromptBuilder, and LLMService to produce grounded,
 citation-backed answers, hints, and practice questions for students.
 """
 
+import json
 import logging
 import random
-from typing import Any, Dict, List, Optional
+import re
+from typing import Any, Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from src.config.settings import get_settings
@@ -40,6 +42,10 @@ class RAGResponse(BaseModel):
     retrieved_chunks: int = Field(..., ge=0, description="Number of context chunks utilized.")
     is_grounded: bool = Field(..., description="True if answer is supported by retrieved context.")
     question: str = Field(..., description="Original user question.")
+    source_kind: str = Field(
+        default="own_document",
+        description="Where the answer came from: own_document, global_document, general_ai or none.",
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         return self.model_dump()
@@ -54,6 +60,7 @@ class RAGService:
         llm_service: Optional[BaseLLMService] = None,
         prompt_builder: Optional[PromptBuilder] = None,
         insufficient_context_message: Optional[str] = None,
+        enable_global_document_search: Optional[bool] = None,
     ):
         """Initialize RAGService.
 
@@ -62,10 +69,17 @@ class RAGService:
             llm_service: LLM service (Gemini or Mock). If None, loaded via factory.
             prompt_builder: PromptBuilder instance. If None, default initialized.
             insufficient_context_message: Default fallback message when no evidence is found.
+            enable_global_document_search: Fall back to other users' PDFs as an anonymous global
+                course database when the student has no matching PDF of their own.
         """
         self.retriever = retriever
         self.llm_service = llm_service or get_llm_service()
         self.prompt_builder = prompt_builder or PromptBuilder()
+        self.enable_global_document_search = (
+            get_settings().ENABLE_GLOBAL_DOCUMENT_SEARCH
+            if enable_global_document_search is None
+            else enable_global_document_search
+        )
         self.insufficient_context_message = insufficient_context_message or (
             "I could not find relevant information in your uploaded course materials to answer this question. Please upload relevant course documents (PDFs) in Study Materials to enable citation-backed answers."
         )
@@ -88,6 +102,125 @@ class RAGService:
                     )
                 )
         return citations
+
+    # ------------------------------------------------------------------
+    # Source priority + anonymous global fallback helpers
+    # ------------------------------------------------------------------
+
+    def _retrieve_with_priority(
+        self,
+        question: str,
+        user_id: Optional[str],
+        top_k: Optional[int],
+        document_ids: Optional[List[str]],
+        min_similarity: Optional[float] = None,
+    ) -> Tuple[List[RetrievedContextChunk], str]:
+        """Search the student's own PDFs first, then the anonymous global course database.
+
+        Returns:
+            (chunks, source_kind) where source_kind is one of:
+            - "own_document": found in the asking student's own PDFs (citations allowed)
+            - "global_document": found in another user's PDFs (all provenance must be hidden)
+            - "none": nothing found in any PDF
+        """
+        own_chunks = self.retriever.retrieve(
+            question=question,
+            user_id=user_id,
+            top_k=top_k,
+            document_ids=document_ids,
+            min_similarity=min_similarity,
+        )
+        if own_chunks:
+            return own_chunks, "own_document"
+
+        # An explicit document selection is a hard boundary — do not silently search other PDFs.
+        if document_ids or not self.enable_global_document_search:
+            return [], "none"
+
+        try:
+            global_chunks = self.retriever.retrieve(
+                question=question,
+                user_id=user_id,
+                top_k=top_k,
+                document_ids=None,
+                min_similarity=min_similarity,
+                include_other_users=True,
+            )
+        except Exception as exc:
+            logger.warning("Anonymous global document search failed: %s", exc)
+            global_chunks = []
+
+        if global_chunks:
+            for chunk in global_chunks:
+                chunk.metadata["_source_hidden"] = True
+            logger.info(
+                "Answered from anonymous global course database (%d chunks); provenance withheld.",
+                len(global_chunks),
+            )
+            return global_chunks, "global_document"
+
+        return [], "none"
+
+    @staticmethod
+    def _clean_json_text(text: str) -> str:
+        """Strip markdown code fences from an LLM JSON response."""
+        cleaned = (text or "").strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.splitlines()
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            cleaned = "\n".join(lines).strip()
+        return cleaned
+
+    def _scrub_source_references(self, text: str, chunks: List[RetrievedContextChunk]) -> str:
+        """Remove document names and page citations that a model may echo from global chunks."""
+        if not text:
+            return text
+
+        cleaned = text
+        filenames = set()
+        for chunk in chunks:
+            candidate = chunk.metadata.get("source") or chunk.source
+            if candidate and candidate != f"{chunk.document_id}.pdf":
+                filenames.add(str(candidate))
+            original = chunk.metadata.get("original_filename")
+            if original:
+                filenames.add(str(original))
+
+        for filename in sorted(filenames, key=len, reverse=True):
+            cleaned = re.sub(re.escape(filename), "", cleaned, flags=re.IGNORECASE)
+
+        cleaned = re.sub(
+            r"\(?\b(?:Page|pages|p\.)\s*#?\d+(?:\s*[-–]\s*\d+)?\)?",
+            "",
+            cleaned,
+            flags=re.IGNORECASE,
+        )
+        cleaned = re.sub(r"\b(?:Document|Source|PDF|File)\s*:\s*[^\n,;)]+", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r",\s*,", ",", cleaned)
+        cleaned = re.sub(r"\(\s*,?\s*\)", "", cleaned)
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+        return cleaned.strip()
+
+    def _strip_source_fields_from_json(self, text: str) -> str:
+        """Drop any source/page fields from a generated drill in the global path."""
+        cleaned = self._clean_json_text(text)
+        try:
+            payload = json.loads(cleaned)
+        except Exception:
+            return cleaned
+
+        if isinstance(payload, dict):
+            payload.pop("sources", None)
+            questions = payload.get("questions")
+            if isinstance(questions, list):
+                for question in questions:
+                    if isinstance(question, dict):
+                        for key in ("source_page", "document_id", "source", "page_number", "source_path"):
+                            question.pop(key, None)
+        return json.dumps(payload, ensure_ascii=False)
 
     def answer_question(
         self,
@@ -217,14 +350,15 @@ class RAGService:
                 question=cleaned_question,
             )
 
-        # Step 1: Retrieve authorized candidate chunks
-        chunks = self.retriever.retrieve(
+        # Step 1: Own PDFs first, then the anonymous global course database
+        chunks, source_kind = self._retrieve_with_priority(
             question=cleaned_question,
             user_id=user_id,
             top_k=top_k,
             document_ids=document_ids,
             min_similarity=min_similarity,
         )
+        anonymous = source_kind == "global_document"
 
         # Step 2: If no course chunks are retrieved, handle according to fallback policy
         if not chunks:
@@ -236,6 +370,7 @@ class RAGService:
                     retrieved_chunks=0,
                     is_grounded=False,
                     question=cleaned_question,
+                    source_kind="none",
                 )
             logger.info("No relevant chunks found above similarity threshold for query. Generating general principles answer.")
             general_prompt = (
@@ -264,19 +399,23 @@ class RAGService:
                 retrieved_chunks=0,
                 is_grounded=False,
                 question=cleaned_question,
+                source_kind="general_ai",
             )
 
-        # Step 3: Extract verified source citations from metadata
-        citations = self._extract_unique_citations(chunks)
+        # Step 3: Citations are only exposed for the student's own PDFs.
+        citations = [] if anonymous else self._extract_unique_citations(chunks)
 
-        # Step 4: Construct structured, grounded prompt with prompt-injection defense
+        # Step 4: Construct structured prompt with prompt-injection defense.
         prompt = self.prompt_builder.build_grounded_qa_prompt(
             question=cleaned_question,
             chunks=chunks,
+            include_provenance=not anonymous,
         )
 
         # Step 5: Generate answer via LLM
         generated_answer = self.llm_service.generate(prompt)
+        if anonymous:
+            generated_answer = self._scrub_source_references(generated_answer, chunks)
 
         return RAGResponse(
             answer=generated_answer,
@@ -284,6 +423,7 @@ class RAGService:
             retrieved_chunks=len(chunks),
             is_grounded=True,
             question=cleaned_question,
+            source_kind=source_kind,
         )
 
     def generate_hint(
@@ -298,12 +438,13 @@ class RAGService:
         if not question or not question.strip():
             raise ValueError("Question cannot be empty or whitespace-only.")
 
-        chunks = self.retriever.retrieve(
+        chunks, source_kind = self._retrieve_with_priority(
             question=question.strip(),
             user_id=user_id,
             top_k=top_k,
             document_ids=document_ids,
         )
+        anonymous = source_kind == "global_document"
 
         if not chunks:
             general_hint_prompt = (
@@ -323,15 +464,19 @@ class RAGService:
                 retrieved_chunks=0,
                 is_grounded=False,
                 question=question,
+                source_kind="general_ai",
             )
 
-        citations = self._extract_unique_citations(chunks)
+        citations = [] if anonymous else self._extract_unique_citations(chunks)
         prompt = self.prompt_builder.build_hint_prompt(
             question=question,
             chunks=chunks,
             student_answer=student_answer,
+            include_provenance=not anonymous,
         )
         hint_text = self.llm_service.generate(prompt)
+        if anonymous:
+            hint_text = self._scrub_source_references(hint_text, chunks)
 
         return RAGResponse(
             answer=hint_text,
@@ -339,6 +484,7 @@ class RAGService:
             retrieved_chunks=len(chunks),
             is_grounded=True,
             question=question,
+            source_kind=source_kind,
         )
 
     def generate_practice_question(
@@ -348,16 +494,21 @@ class RAGService:
         top_k: int = 3,
         document_ids: Optional[List[str]] = None,
     ) -> RAGResponse:
-        """Generate a new grounded practice question based on course material."""
+        """Generate an interactive drill from a PDF first, then global PDFs, then general AI.
+
+        source_kind in the response tells the caller whether the drill came from the student's
+        own PDF, the anonymous global database, or Gemini general knowledge (AI practice).
+        """
         if not topic or not topic.strip():
             raise ValueError("Topic cannot be empty or whitespace-only.")
 
-        chunks = self.retriever.retrieve(
+        chunks, source_kind = self._retrieve_with_priority(
             question=topic.strip(),
             user_id=user_id,
             top_k=top_k,
             document_ids=document_ids,
         )
+        anonymous = source_kind == "global_document"
 
         if not chunks:
             if document_ids:
@@ -368,6 +519,7 @@ class RAGService:
                     retrieved_chunks=0,
                     is_grounded=False,
                     question=topic,
+                    source_kind="none",
                 )
 
             general_practice_prompt = (
@@ -376,15 +528,7 @@ class RAGService:
                 f'{{"questions":[{{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct_option_index":0,"explanation":"Clear explanation of why this answer is correct."}}],"insufficient":false,"message":""}}'
             )
             try:
-                raw_resp = self.llm_service.generate(general_practice_prompt).strip()
-                if raw_resp.startswith("```"):
-                    lines = raw_resp.splitlines()
-                    if lines and lines[0].startswith("```"):
-                        lines = lines[1:]
-                    if lines and lines[-1].strip() == "```":
-                        lines = lines[:-1]
-                    raw_resp = "\n".join(lines).strip()
-                practice_text = raw_resp
+                practice_text = self._clean_json_text(self.llm_service.generate(general_practice_prompt))
             except Exception:
                 safe_topic = topic.strip().replace('"', "'")
                 practice_text = (
@@ -395,27 +539,26 @@ class RAGService:
                     f'"correct_option_index":0,"explanation":"Deep understanding of core principles and active problem-solving leads to strong exam performance."}}],'
                     f'"insufficient":false,"message":""}}'
                 )
+            # No PDF anywhere: still interactive, but marked so the caller can log AI practice.
             return RAGResponse(
                 answer=practice_text,
                 sources=[],
                 retrieved_chunks=0,
                 is_grounded=False,
                 question=topic,
+                source_kind="general_ai",
             )
 
-        citations = self._extract_unique_citations(chunks)
+        citations = [] if anonymous else self._extract_unique_citations(chunks)
         prompt = self.prompt_builder.build_practice_question_prompt(
             topic=topic,
             chunks=chunks,
+            include_provenance=not anonymous,
         )
-        practice_text = self.llm_service.generate(prompt).strip()
-        if practice_text.startswith("```"):
-            lines = practice_text.splitlines()
-            if lines and lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            practice_text = "\n".join(lines).strip()
+        practice_text = self._clean_json_text(self.llm_service.generate(prompt))
+        if anonymous:
+            practice_text = self._strip_source_fields_from_json(practice_text)
+            practice_text = self._scrub_source_references(practice_text, chunks)
 
         return RAGResponse(
             answer=practice_text,
@@ -423,6 +566,7 @@ class RAGService:
             retrieved_chunks=len(chunks),
             is_grounded=True,
             question=topic,
+            source_kind=source_kind,
         )
 
 

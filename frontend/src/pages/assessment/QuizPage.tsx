@@ -4,7 +4,9 @@ import { ArrowLeft, BookOpen, CheckCircle2, Printer, RefreshCw, Upload, AlertTri
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
+import { CitationBadge } from '../../components/ui/Badge'
 import { api } from '../../api/client'
+import type { TutorSourceKind } from '../../types/api'
 import { recordQuizAttempt } from '../../utils/assessmentFlow'
 
 type MCQ = {
@@ -14,6 +16,20 @@ type MCQ = {
   explanation?: string
   source_page?: number
 }
+
+const SOURCE_PRIORITY: Record<TutorSourceKind, number> = {
+  own_document: 4,
+  global_document: 3,
+  general_ai: 2,
+  none: 1,
+}
+
+/** A quiz can span several batches; show the strongest available provenance. */
+const strongestSource = (kinds: TutorSourceKind[]): TutorSourceKind =>
+  kinds.reduce<TutorSourceKind>(
+    (best, kind) => (SOURCE_PRIORITY[kind] > SOURCE_PRIORITY[best] ? kind : best),
+    'none',
+  )
 
 function tryParseQuestions(answer: string): { questions: MCQ[]; insufficient: boolean; message?: string } {
   try {
@@ -54,6 +70,8 @@ export const QuizPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [questions, setQuestions] = useState<MCQ[]>([])
+  const [sourceKind, setSourceKind] = useState<TutorSourceKind | null>(null)
+  const [practiceRecordId, setPracticeRecordId] = useState<string | null>(null)
   const [insufficientMessage, setInsufficientMessage] = useState<string | null>(null)
   const [selected, setSelected] = useState<Record<number, number>>({})
   const [diagnoses, setDiagnoses] = useState<Record<number, string>>({})
@@ -85,6 +103,8 @@ export const QuizPage: React.FC = () => {
     setIsLoading(true)
     setError(null)
     setInsufficientMessage(null)
+    setSourceKind(null)
+    setPracticeRecordId(null)
     setQuestions([])
     setSelected({})
     setDiagnoses({})
@@ -93,20 +113,27 @@ export const QuizPage: React.FC = () => {
     try {
       // generate in batches (3 per call) until we reach requested count or run out
       const collected: MCQ[] = []
+      const kinds: TutorSourceKind[] = []
+      let aiPracticeId: string | null = null
+      let sawInsufficient = false
       const calls = Math.ceil(questionCount / 3)
       const promptFocus = state.drillMode === 'error'
         ? 'Focus heavily on common misconceptions, tricky edge cases, and high-frequency conceptual traps.'
         : 'Focus on key concepts, definitions, facts, and explanations.'
       for (let i = 0; i < calls; i++) {
         const res = await api.tutor.ask({
-          question: `Generate practice MCQs from the uploaded PDF for ${topic}. ${promptFocus} Session variation ${retryKey + 1}-${i + 1}.`,
+          question: `Generate practice MCQs for ${topic} from the best available course material. ${promptFocus} Session variation ${retryKey + 1}-${i + 1}.`,
           mode: 'practice',
           topic,
           document_ids: documentIds,
         })
+        kinds.push(res.source_kind || 'none')
+        if (!aiPracticeId && res.practice_record_id) aiPracticeId = res.practice_record_id
+
         const parsed = tryParseQuestions(res.answer)
         if (parsed.insufficient && collected.length === 0) {
-          setInsufficientMessage(parsed.message || res.answer || 'Not enough information in the selected PDF to generate questions.')
+          sawInsufficient = true
+          setInsufficientMessage(parsed.message || res.answer || 'Not enough matching course material to generate questions on this topic.')
           break
         }
         if (parsed.questions.length > 0) {
@@ -125,9 +152,11 @@ export const QuizPage: React.FC = () => {
         if (!seen.has(k)) { seen.add(k); uniq.push(q) }
       }
       setQuestions(uniq.slice(0, questionCount))
-      if (uniq.length === 0 && !insufficientMessage) setInsufficientMessage('Could not generate questions from the selected PDF. Please try another PDF or upload material with more content.')
+      setSourceKind(strongestSource(kinds))
+      setPracticeRecordId(aiPracticeId)
+      if (uniq.length === 0 && !sawInsufficient) setInsufficientMessage('Could not generate questions from the available course material. Try another topic or upload material with more content.')
     } catch (e: any) {
-      setError(e?.message || 'Failed to generate questions from the PDF.')
+      setError(e?.message || 'Failed to generate practice questions.')
     } finally {
       setIsLoading(false)
     }
@@ -155,7 +184,7 @@ export const QuizPage: React.FC = () => {
           learning_objective_id: learningObjectiveId,
           obtained_score: score.pct,
           max_score: 100,
-          evidence: `Quiz/Practice completed on ${topic}. Score ${score.correct}/${score.total} (${score.pct}%). Mode: ${state.drillMode || 'standard'}.`,
+          evidence: `Quiz/Practice completed on ${topic}. Score ${score.correct}/${score.total} (${score.pct}%). Mode: ${state.drillMode || 'standard'}. Source: ${sourceKind || 'unknown'}.${sourceKind === 'general_ai' ? ` AI practice record: ${practiceRecordId || 'n/a'}.` : ''}`,
         })
 
         if (result.phase === 'baseline') {
@@ -215,7 +244,7 @@ export const QuizPage: React.FC = () => {
     return (
       <div className="py-20 flex flex-col items-center justify-center space-y-4">
         <LoadingSpinner size="lg" />
-        <p className="text-xs text-slate-500 font-medium">Generating questions from your uploaded PDF...</p>
+        <p className="text-xs text-slate-500 font-medium">Finding the best course material and building your quiz...</p>
       </div>
     )
   }
@@ -225,13 +254,30 @@ export const QuizPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
         <div className="flex items-center gap-3">
           <Link to="/practice" className="text-slate-400 hover:text-slate-700"><ArrowLeft className="w-4 h-4" /></Link>
-          <span className="font-bold text-sm text-slate-800">PDF-Based Practice • {topic}</span>
+          <span className="font-bold text-sm text-slate-800">Practice Quiz • {topic}</span>
         </div>
         <div className="flex items-center gap-3 text-xs">
           {state.timedMode && <span className={`font-bold px-2 py-1 rounded ${timeLeft < 30 ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700'}`}>Time: {formatTime(timeLeft)}</span>}
           {state.printMode && <Button variant="outline" size="sm" leftIcon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>}
         </div>
       </div>
+
+      {sourceKind && sourceKind !== 'none' && (
+        <Card className="p-4 bg-white border border-slate-200 rounded-2xl flex flex-wrap items-center gap-3">
+          <CitationBadge
+            grounded={sourceKind === 'own_document' || sourceKind === 'global_document'}
+            sourceKind={sourceKind}
+            mode="practice"
+          />
+          <p className="text-xs text-slate-600 flex-1 min-w-[220px]">
+            {sourceKind === 'own_document'
+              ? 'Sourced from your uploaded PDFs. Page numbers are shown where available.'
+              : sourceKind === 'global_document'
+              ? 'Sourced from the anonymous shared course database. File names, pages, uploaders, and similarity scores are hidden.'
+              : 'No PDF matched, so Gemini generated these questions. This session was saved in your AI practice log.'}
+          </p>
+        </Card>
+      )}
 
       {error && (
         <Card className="p-6 text-center bg-white border border-slate-200 rounded-2xl space-y-3">
@@ -245,7 +291,7 @@ export const QuizPage: React.FC = () => {
       {insufficientMessage && !error && (
         <Card className="p-8 text-center bg-white border border-slate-200 rounded-2xl space-y-4">
           <BookOpen className="w-10 h-10 text-amber-600 mx-auto" />
-          <h2 className="text-base font-bold text-slate-900">Not enough information in the PDF</h2>
+          <h2 className="text-base font-bold text-slate-900">Not enough matching course material</h2>
           <p className="text-xs text-slate-600 max-w-xl mx-auto">{insufficientMessage}</p>
           <div className="flex justify-center gap-3 pt-1">
             <Link to="/materials"><Button variant="primary" leftIcon={<Upload className="w-4 h-4" />}>Upload/Select Material</Button></Link>
@@ -294,7 +340,7 @@ export const QuizPage: React.FC = () => {
                 <Card key={qi} className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-semibold text-slate-900"><span className="text-[#2563EB] mr-1">Q{qi + 1}.</span> {q.question}</p>
-                    {q.source_page ? <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 border">p.{q.source_page}</span> : null}
+                    {sourceKind === 'own_document' && q.source_page ? <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 border">p.{q.source_page}</span> : null}
                   </div>
                   {hasOptions ? (
                     <div className="space-y-2">
@@ -353,4 +399,4 @@ export const QuizPage: React.FC = () => {
       )}
     </div>
   )
-}
+}
