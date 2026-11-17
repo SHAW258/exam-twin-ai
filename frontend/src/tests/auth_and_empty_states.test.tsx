@@ -138,7 +138,7 @@ describe('PHASE 3 & 9: Real Empty States for Zero-Record State', () => {
     renderWithProviders(<ErrorDNAPage />)
 
     await waitFor(() => {
-      expect(screen.getByText(/No Cognitive Errors Diagnosed Yet/i)).toBeInTheDocument()
+      expect(screen.getByText(/No Mistakes Found Yet/i)).toBeInTheDocument()
     })
   })
 })

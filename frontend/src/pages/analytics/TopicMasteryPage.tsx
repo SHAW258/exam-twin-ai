@@ -11,11 +11,12 @@ export const TopicMasteryPage: React.FC = () => {
   const navigate = useNavigate()
   const [learnerState, setLearnerState] = useState<ErrorDNASummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     api.learning.getState()
       .then(setLearnerState)
-      .catch(() => {})
+      .catch(() => setError('Could not load your topic mastery. Refresh the page to try again.'))
       .finally(() => setIsLoading(false))
   }, [])
 
@@ -47,6 +48,12 @@ export const TopicMasteryPage: React.FC = () => {
           Track mastery for each topic based on your actual quiz and assessment results, and start topic-specific practice.
         </p>
       </div>
+
+      {error && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+          {error}
+        </div>
+      )}
 
       {masteries.length === 0 ? (
         <Card className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-4 max-w-2xl mx-auto">

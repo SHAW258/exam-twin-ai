@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { api } from '../../api/client'
+import { recordQuizAttempt } from '../../utils/assessmentFlow'
 
 type MCQ = {
   question: string
@@ -58,6 +59,8 @@ export const QuizPage: React.FC = () => {
   const [diagnoses, setDiagnoses] = useState<Record<number, string>>({})
   const [submitted, setSubmitted] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [progressNote, setProgressNote] = useState<string | null>(null)
+  const [progressError, setProgressError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
   const timeLimitSec = state.timedMode ? Math.max(60, questionCount * 45) : 0
@@ -146,14 +149,25 @@ export const QuizPage: React.FC = () => {
     setShowResults(true)
     try {
       if (answerableQuestions.length > 0) {
-        await api.assessments.submit({
+        const learningObjectiveId = `LO-${topic.substring(0, 8).toUpperCase().replace(/\W/g, '') || 'GEN'}`
+        const result = await recordQuizAttempt({
           topic,
-          learning_objective_id: `LO-${topic.substring(0, 8).toUpperCase().replace(/\W/g, '') || 'GEN'}`,
-          assessment_type: 'FORMATIVE',
+          learning_objective_id: learningObjectiveId,
           obtained_score: score.pct,
           max_score: 100,
           evidence: `Quiz/Practice completed on ${topic}. Score ${score.correct}/${score.total} (${score.pct}%). Mode: ${state.drillMode || 'standard'}.`,
         })
+
+        if (result.phase === 'baseline') {
+          setProgressNote('Baseline saved. Take another quiz on this topic to measure your progress.')
+        } else if (result.measurement) {
+          const before = Math.round(result.measurement.pre_normalized_score * 100)
+          const after = Math.round(result.measurement.post_normalized_score * 100)
+          setProgressNote(`Progress measured: ${before}% before → ${after}% after. Check Analytics and Topic Mastery for details.`)
+        }
+        if (result.measurementError) {
+          setProgressError(`Your score was saved, but progress could not be measured: ${result.measurementError}`)
+        }
 
         // Run automated error diagnosis on incorrect answers to feed Learning DNA
         const diagEntries: Record<number, string> = {}
@@ -179,7 +193,9 @@ export const QuizPage: React.FC = () => {
           setDiagnoses(diagEntries)
         }
       }
-    } catch {}
+    } catch (e) {
+      setProgressError(e instanceof Error ? e.message : 'Could not save your results.')
+    }
   }
 
   const retry = () => {
@@ -187,6 +203,8 @@ export const QuizPage: React.FC = () => {
     setDiagnoses({})
     setSubmitted(false)
     setShowResults(false)
+    setProgressNote(null)
+    setProgressError(null)
   }
 
   const newSet = () => setRetryKey(k => k + 1)
@@ -249,6 +267,21 @@ export const QuizPage: React.FC = () => {
                 <Button variant="primary" size="sm" className="bg-[#2563EB] hover:bg-[#1d4ed8]" leftIcon={<RefreshCw className="w-4 h-4" />} onClick={newSet}>New Questions</Button>
               </div>
             </Card>
+          )}
+
+          {(progressNote || progressError) && (
+            <div className="space-y-2">
+              {progressNote && (
+                <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-900">
+                  {progressNote}
+                </div>
+              )}
+              {progressError && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                  {progressError}
+                </div>
+              )}
+            </div>
           )}
 
           <div className="space-y-4">

@@ -12,6 +12,7 @@ export const LearningAnalyticsPage: React.FC = () => {
   const [learnerState, setLearnerState] = useState<ErrorDNASummary | null>(null)
   const [intervention, setIntervention] = useState<InterventionRecommendation | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.allSettled([api.measurements.list(), api.learning.getState(), api.learning.getInterventions()])
@@ -19,6 +20,8 @@ export const LearningAnalyticsPage: React.FC = () => {
         if (mRes.status === 'fulfilled') setMeasurements(mRes.value)
         if (sRes.status === 'fulfilled') setLearnerState(sRes.value)
         if (iRes.status === 'fulfilled') setIntervention(iRes.value)
+        const failed = [mRes, sRes, iRes].some((r) => r.status === 'rejected')
+        if (failed) setError('Some learning data could not be loaded. Refresh the page to try again.')
       })
       .finally(() => setIsLoading(false))
   }, [])
@@ -65,6 +68,12 @@ export const LearningAnalyticsPage: React.FC = () => {
           See your overall performance trends and personalized improvement tips based on your actual assessment and practice data.
         </p>
       </div>
+
+      {error && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-1">

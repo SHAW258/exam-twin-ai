@@ -12,12 +12,16 @@ export const AssessmentHistoryPage: React.FC = () => {
   const [assessments, setAssessments] = useState<AssessmentResponse[]>([])
   const [measurements, setMeasurements] = useState<MeasurementResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.allSettled([api.assessments.list(), api.measurements.list()])
       .then(([aRes, mRes]) => {
         if (aRes.status === 'fulfilled') setAssessments(aRes.value)
         if (mRes.status === 'fulfilled') setMeasurements(mRes.value)
+        if (aRes.status === 'rejected' || mRes.status === 'rejected') {
+          setError('Some assessment records could not be loaded. Refresh the page to try again.')
+        }
       })
       .finally(() => setIsLoading(false))
   }, [])
@@ -50,6 +54,12 @@ export const AssessmentHistoryPage: React.FC = () => {
           </Button>
         </Link>
       </div>
+
+      {error && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+          {error}
+        </div>
+      )}
 
       {assessments.length === 0 ? (
         <Card className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-4 max-w-2xl mx-auto">
