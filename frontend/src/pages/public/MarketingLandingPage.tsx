@@ -1,3 +1,4 @@
+import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -29,9 +30,7 @@ export const MarketingLandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center text-white shadow-xs">
-                <BookOpen className="w-5 h-5" />
-              </div>
+              <CodeKnotIcon className="w-9 h-9" />
               <span className="font-extrabold text-xl tracking-tight text-slate-900">
                 Code<span className="text-[#2563EB]">Knot</span>
               </span>

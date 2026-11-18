@@ -14,10 +14,10 @@ import {
   User,
   HelpCircle,
   LogOut,
-  GraduationCap,
   ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { CodeKnotIcon } from '../ui/CodeKnotIcon'
 
 interface SidebarProps {
   onNavigate?: () => void
@@ -75,9 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
     <aside className="w-64 bg-white border-r border-slate-200 flex flex-col h-full select-none">
       {/* Brand Header */}
       <div className="h-16 flex items-center px-6 border-b border-slate-100 gap-3">
-        <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center text-white shadow-sm border border-[#1d4ed8]">
-          <GraduationCap className="w-5 h-5" />
-        </div>
+        <CodeKnotIcon className="w-9 h-9 shrink-0" />
         <div>
           <h1 className="font-bold text-[#14213D] tracking-tight text-base flex items-center gap-1.5">
             CodeKnot <span className="text-[10px] font-semibold bg-[#E0F2FE] text-[#2563EB] px-1.5 py-0.5 rounded border border-[#BFDBFE]">AI</span>

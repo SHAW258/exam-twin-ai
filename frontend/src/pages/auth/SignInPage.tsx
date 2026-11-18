@@ -1,3 +1,4 @@
+import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
 import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -53,9 +54,7 @@ export const SignInPage: React.FC = () => {
       {/* Top Header */}
       <div className="max-w-4xl mx-auto w-full flex items-center justify-between gap-4 mb-2">
         <Link to="/" className="inline-flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-xs">
-            <BookOpen className="w-4 h-4" />
-          </div>
+          <CodeKnotIcon className="w-8 h-8" />
           <span className="font-extrabold text-xl tracking-tight text-[#14213D]">
             Code<span className="text-[#2563EB]">Knot</span>
           </span>

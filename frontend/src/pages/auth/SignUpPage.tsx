@@ -1,3 +1,4 @@
+import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -141,9 +142,7 @@ export const SignUpPage: React.FC = () => {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-xs">
-                <BookOpen className="w-4 h-4" />
-              </div>
+              <CodeKnotIcon className="w-8 h-8" />
               <span className="font-extrabold text-xl tracking-tight text-[#14213D]">
                 Code<span className="text-[#2563EB]">Knot</span>
               </span>

@@ -1,3 +1,4 @@
+import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -81,9 +82,7 @@ export const GlobalErrorPage: React.FC = () => {
       {/* Top Header with Back Link matching Figma */}
       <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
         <Link to="/" className="inline-flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-200">
-            <GraduationCap className="w-5 h-5" />
-          </div>
+          <CodeKnotIcon className="w-9 h-9" />
           <span className="font-bold text-xl text-slate-900 tracking-tight">CodeKnot</span>
         </Link>
         <Link
