@@ -446,8 +446,7 @@ export const SplashScreen: React.FC = () => {
             </p>
             <p className="text-slate-400 text-xs sm:text-sm max-w-xl mx-auto leading-relaxed">
               Personalized syllabus grounding, cognitive error diagnosis, and adaptive retrieval
-              acceleration.{' '}
-              <span className="text-slate-500 font-normal">Formerly ExamTwin.</span>
+              acceleration.
             </p>
           </div>
 
@@ -482,8 +481,7 @@ export const SplashScreen: React.FC = () => {
         {/* Footer */}
         <footer className="w-full flex flex-col sm:flex-row items-center text-xs text-slate-400 gap-2.5 pt-4 border-t border-white/5 justify-center">
           <div className="text-center">
-            © 2025 CodeKnot Systems Inc. All rights reserved.{' '}
-            <span className="text-slate-500">Formerly ExamTwin.</span>
+            © 2025 CodeKnot Systems Inc. All rights reserved.
           </div>
         </footer>
       </main>
