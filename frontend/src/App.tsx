@@ -5,6 +5,9 @@ import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 
+// Splash Screen
+import { SplashScreen } from './components/splash/SplashScreen'
+
 // Public & Auth Pages
 import { MarketingLandingPage } from './pages/public/MarketingLandingPage'
 import { SignInPage } from './pages/auth/SignInPage'
@@ -46,7 +49,8 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<MarketingLandingPage />} />
+          <Route path="/" element={<SplashScreen />} />
+          <Route path="/about" element={<MarketingLandingPage />} />
           <Route path="/login" element={<SignInPage />} />
           <Route path="/register" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

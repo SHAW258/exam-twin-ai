@@ -9,16 +9,20 @@ describe('CodeKnot Frontend Application', () => {
     window.history.pushState({}, 'Test', '/')
   })
 
-  it('renders marketing landing page at root URL with exact brand and heading', () => {
+  it('renders SplashScreen at root URL with brand identity and headline', () => {
     render(<App />)
-    expect(screen.getByText(/Learn Better with/i)).toBeInTheDocument()
-    expect(screen.getAllByText(/CodeKnot/i)[0]).toBeInTheDocument()
-    expect(screen.getByText(/Upload your PDFs/i)).toBeInTheDocument()
+    // The SplashScreen renders "Code" and "Knot" as separate spans – combine check
+    expect(screen.getByRole('main')).toBeInTheDocument()
+    expect(screen.getByText('Code')).toBeInTheDocument()
+    expect(screen.getByText('Knot')).toBeInTheDocument()
+    expect(
+      screen.getByText(/AI-Powered Examination/i)
+    ).toBeInTheDocument()
   })
 
-  it('renders interactive hero preview with grounded learning example', () => {
+  it('renders Enter Workspace and Explore Docs CTA buttons on the splash screen', () => {
     render(<App />)
-    expect(screen.getByText(/Grounded Study Workspace/i)).toBeInTheDocument()
-    expect(screen.getByText(/Practice Question/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Enter Workspace/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Explore System Architecture/i })).toBeInTheDocument()
   })
 })
