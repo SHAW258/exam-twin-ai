@@ -507,7 +507,7 @@ class RAGService:
 
         target_count = max(1, min(25, question_count))
         # Dynamically scale retrieved chunk budget according to requested question count
-        retrieval_k = top_k if top_k is not None else max(5, min(25, target_count * 2))
+        retrieval_k = top_k if top_k is not None else max(6, min(30, target_count * 2))
 
         chunks, source_kind = self._retrieve_with_priority(
             question=topic.strip(),
@@ -515,6 +515,31 @@ class RAGService:
             top_k=retrieval_k,
             document_ids=document_ids,
         )
+
+        # In Auto mode (no explicit document selected), if similarity search yielded 0 chunks
+        # but the user has uploaded documents, fall back to retrieving from their latest document
+        if not chunks and not document_ids and user_id:
+            db_mgr = getattr(self.retriever.vector_store, "db_manager", None)
+            if db_mgr:
+                try:
+                    from src.database.models import Document
+                    from sqlalchemy import select
+                    with db_mgr.get_session() as session:
+                        user_doc = session.execute(
+                            select(Document)
+                            .where(Document.owner_user_id == user_id)
+                            .order_by(Document.created_at.desc())
+                        ).scalars().first()
+                        if user_doc:
+                            chunks, source_kind = self._retrieve_with_priority(
+                                question=topic.strip(),
+                                user_id=user_id,
+                                top_k=retrieval_k,
+                                document_ids=[user_doc.id],
+                            )
+                except Exception as exc:
+                    logger.debug("Auto document fallback retrieval failed: %s", exc)
+
         anonymous = source_kind == "global_document"
 
         if not chunks:
@@ -560,7 +585,7 @@ class RAGService:
         # If multiple chunks exist and a variation seed is provided, rotate chunks to explore different pages
         active_chunks = chunks
         if len(chunks) > 1 and seed is not None and seed > 0:
-            offset = seed % len(chunks)
+            offset = (seed * 3) % len(chunks)
             active_chunks = chunks[offset:] + chunks[:offset]
 
         citations = [] if anonymous else self._extract_unique_citations(active_chunks)

@@ -2,7 +2,9 @@
 
 import email
 from pathlib import Path
+import re
 import tempfile
+import urllib.parse
 import uuid
 from typing import List, Optional
 
@@ -81,7 +83,7 @@ async def upload_document(
         file_bytes = await request.body()
         filename_header = request.headers.get("x-filename")
         if filename_header:
-            filename = filename_header
+            filename = urllib.parse.unquote(filename_header)
 
     if len(file_bytes) == 0:
         raise HTTPException(
@@ -177,11 +179,16 @@ def list_documents(
                 Document.owner_user_id == current_student.external_student_id
             ).order_by(Document.created_at.desc())
 
+        def _clean_title(raw_name: str) -> str:
+            decoded = urllib.parse.unquote(raw_name or "Untitled Document")
+            cleaned = re.sub(r"^doc_[a-f0-9]+_", "", decoded)
+            return cleaned.strip() or decoded
+
         docs = session.execute(stmt).scalars().all()
         return [
             DocumentListItem(
                 id=d.id,
-                title=getattr(d, "original_filename", None) or getattr(d, "filename", "Untitled Document"),
+                title=_clean_title(getattr(d, "original_filename", None) or getattr(d, "filename", "Untitled Document")),
                 access_level=d.access_level,
                 pages_count=len(d.pages) if d.pages else 0,
                 chunks_count=len(d.chunks) if d.chunks else 0,
@@ -217,9 +224,13 @@ def get_document_details(
                 detail="Access denied: You do not have permission to view this document.",
             )
 
+        raw_name = getattr(doc, "original_filename", None) or getattr(doc, "filename", "Untitled Document")
+        decoded = urllib.parse.unquote(raw_name)
+        cleaned_title = re.sub(r"^doc_[a-f0-9]+_", "", decoded).strip() or decoded
+
         return DocumentDetailResponse(
             id=doc.id,
-            title=getattr(doc, "original_filename", None) or getattr(doc, "filename", "Untitled Document"),
+            title=cleaned_title,
             access_level=doc.access_level,
             pages_count=len(doc.pages) if doc.pages else 0,
             chunks_count=len(doc.chunks) if doc.chunks else 0,

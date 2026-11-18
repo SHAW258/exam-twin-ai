@@ -188,3 +188,17 @@ def test_retrieve_high_similarity_threshold_filters_out(test_db_manager, vector_
         min_similarity=0.95,
     )
     assert len(results) == 0
+
+
+def test_retrieve_explicit_document_preserves_chunks(test_db_manager, vector_store, embedding_service, retriever):
+    """Verify explicit document_ids preserves chunks from that document even with high threshold."""
+    _seed_document_and_chunks(test_db_manager, vector_store, embedding_service)
+
+    results = retriever.retrieve(
+        question="Course Material",
+        user_id="user_alice",
+        document_ids=["doc_ds"],
+        min_similarity=0.99,
+    )
+    assert len(results) > 0
+    assert results[0].document_id == "doc_ds"

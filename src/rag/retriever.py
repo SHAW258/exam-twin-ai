@@ -138,6 +138,10 @@ class Retriever:
         if raw_results and raw_results[0].similarity_score >= 0.15 and not any(r.similarity_score >= threshold for r in raw_results):
             effective_threshold = 0.15
 
+        # For explicit document constraints, relax threshold so chunks from the requested document are preserved
+        if document_ids and raw_results and not any(r.similarity_score >= effective_threshold for r in raw_results):
+            effective_threshold = 0.0
+
         retrieved_chunks: List[RetrievedContextChunk] = []
         for res in raw_results:
             if res.similarity_score < effective_threshold:
@@ -154,6 +158,32 @@ class Retriever:
                 metadata=res.metadata,
             )
             retrieved_chunks.append(chunk_obj)
+
+        # Fallback for explicit document search: if vector search yielded 0 chunks,
+        # fetch the document's stored chunks directly so student PDF content is always grounded
+        if not retrieved_chunks and document_ids:
+            for doc_id in document_ids:
+                try:
+                    stored_records = self.vector_store.get_document_chunks(doc_id)
+                    for rec in stored_records:
+                        source_name = rec.metadata.get("source") or f"{rec.document_id}.pdf"
+                        retrieved_chunks.append(
+                            RetrievedContextChunk(
+                                document_id=rec.document_id,
+                                page_number=rec.page_number,
+                                chunk_index=rec.chunk_index,
+                                text=rec.text,
+                                similarity_score=0.5,
+                                source=source_name,
+                                metadata=rec.metadata,
+                            )
+                        )
+                        if len(retrieved_chunks) >= k:
+                            break
+                except Exception as exc:
+                    logger.debug("Document chunk fallback retrieval failed for %s: %s", doc_id, exc)
+                if len(retrieved_chunks) >= k:
+                    break
 
         logger.info(
             "Retrieved %d candidate chunks for query (threshold=%.2f, user_id=%s)",

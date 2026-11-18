@@ -52,6 +52,7 @@ class PromptBuilder:
         self,
         chunks: List[RetrievedContextChunk],
         include_provenance: bool = True,
+        max_chars: Optional[int] = None,
     ) -> str:
         """Format retrieved chunks into a numbered context section.
 
@@ -59,6 +60,7 @@ class PromptBuilder:
             chunks: List of retrieved context chunks.
             include_provenance: Include document name, page number and similarity score. Set to
                 False for the anonymous global database path so no source detail enters the prompt.
+            max_chars: Maximum character budget. If None, self.max_context_chars is used.
 
         Returns:
             Formatted context string within character limit.
@@ -68,6 +70,7 @@ class PromptBuilder:
 
         context_parts = []
         total_chars = 0
+        budget = max_chars if max_chars is not None else self.max_context_chars
 
         for idx, chunk in enumerate(chunks):
             if include_provenance:
@@ -84,9 +87,9 @@ class PromptBuilder:
             entry = f"{chunk_header}{chunk_text}\n"
 
             # Check character limit budget
-            if total_chars + len(entry) > self.max_context_chars:
+            if total_chars + len(entry) > budget:
                 # If budget exceeded, include truncated portion if first chunk, else stop
-                remaining_budget = self.max_context_chars - total_chars - len(chunk_header) - 20
+                remaining_budget = budget - total_chars - len(chunk_header) - 20
                 if remaining_budget > 100:
                     truncated_text = chunk_text[:remaining_budget] + "... [truncated]"
                     context_parts.append(f"{chunk_header}{truncated_text}\n")
@@ -183,7 +186,9 @@ class PromptBuilder:
             query_instruction: Optional additional drill instructions (e.g., focus on misconceptions).
             seed: Optional randomization seed to generate diverse, non-repetitive question sets.
         """
-        context_block = self.build_context_block(chunks, include_provenance=include_provenance)
+        target_count = max(1, min(25, question_count))
+        context_budget = max(self.max_context_chars, target_count * 2500)
+        context_block = self.build_context_block(chunks, include_provenance=include_provenance, max_chars=context_budget)
         system_prompt = SYSTEM_PROMPT_GROUNDED if include_provenance else SYSTEM_PROMPT_ANONYMOUS
         context_heading = "RETRIEVED DOCUMENT CONTEXT" if include_provenance else "SHARED COURSE KNOWLEDGE"
         source_page_field = '      "source_page": 1\n' if include_provenance else ""
@@ -192,8 +197,6 @@ class PromptBuilder:
             if include_provenance
             else " Never include a source_page field or any document, file name, page number, or source reference in the JSON."
         )
-
-        target_count = max(1, min(25, question_count))
         variation_note = f"\nVariation Seed: #{seed}. Explore different sections and formulate fresh questions." if seed is not None else ""
         focus_note = f"\nSpecific Focus: {query_instruction.strip()}" if query_instruction and query_instruction.strip() else ""
 

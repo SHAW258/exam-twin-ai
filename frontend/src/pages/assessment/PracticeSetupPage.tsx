@@ -17,7 +17,12 @@ export const PracticeSetupPage: React.FC = () => {
   const [recommendedTopic, setRecommendedTopic] = useState<string | null>(null)
 
   useEffect(() => {
-    api.documents.list().then(setDocuments).catch(() => {})
+    api.documents.list().then((docs) => {
+      setDocuments(docs)
+      if (docs.length > 0) {
+        setSelectedDocId(docs[0].id)
+      }
+    }).catch(() => {})
 
     api.learning.getInterventions().then((rec) => {
       if (rec?.selected_topic && rec.selected_topic !== 'General Foundation') {
@@ -30,9 +35,8 @@ export const PracticeSetupPage: React.FC = () => {
   const isAutoSource = !selectedDocId
 
   const startDrill = (mode: 'error' | 'dns_print' | 'adapted_retrieval') => {
-    const topic = (mode === 'adapted_retrieval' && recommendedTopic)
-      ? recommendedTopic
-      : (autoTopic.trim() || (isAutoSource ? 'Course Material' : (selectedDoc?.title?.replace(/\.pdf$/i, '') || 'Course Material')))
+    const docCleanTitle = selectedDoc?.title?.replace(/\.pdf$/i, '').replace(/^doc_[a-f0-9]+_/, '') || ''
+    const topic = autoTopic.trim() || docCleanTitle || (isAutoSource && mode === 'adapted_retrieval' && recommendedTopic ? recommendedTopic : 'Course Material')
 
     setActiveMode(mode)
     setStatusMessage(
@@ -46,7 +50,7 @@ export const PracticeSetupPage: React.FC = () => {
     navigate('/quiz', {
       state: {
         documentId: selectedDocId || undefined,
-        documentIds: selectedDocId ? [selectedDocId] : undefined,
+        documentIds: selectedDocId ? [selectedDocId] : (documents.length > 0 ? [documents[0].id] : undefined),
         topic,
         questionCount,
         drillMode: mode,
