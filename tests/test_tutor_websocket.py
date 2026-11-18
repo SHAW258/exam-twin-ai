@@ -167,3 +167,70 @@ def test_tutor_websocket_connection_and_interaction(client, alice_auth):
         ws.send_json({"type": "ping"})
         msg_pong = ws.receive_json()
         assert msg_pong["type"] == "pong"
+
+
+def test_tutor_websocket_preserves_exact_bubble_order_and_ack(client, alice_auth):
+    """Verify student_ack, monotonic seq, in_reply_to anchoring, and exact order across WS reconnects."""
+    token = alice_auth["token"]
+    client.delete("/api/v1/tutor/history", headers=alice_auth["headers"])
+
+    def _fake_answer(question, **_kwargs):
+        r = MagicMock()
+        r.question = question
+        r.answer = f"Answer for: {question}"
+        r.is_grounded = False
+        r.sources = []
+        r.source_kind = "general_ai"
+        return r
+
+    with patch("src.api.routers.tutor.get_rag_service") as mock_get_rag:
+        mock_rag = MagicMock()
+        mock_rag.answer_question.side_effect = _fake_answer
+        mock_get_rag.return_value = mock_rag
+
+        with client.websocket_connect(f"/api/v1/tutor/ws?token={token}") as ws:
+            assert ws.receive_json()["type"] == "connected"
+            assert ws.receive_json()["type"] == "history"
+
+            # Turn 1
+            ws.send_json({"type": "question", "client_msg_id": "c-1", "question": "First Q", "mode": "qa"})
+            ack1 = ws.receive_json()
+            assert ack1["type"] == "student_ack"
+            assert ack1["client_msg_id"] == "c-1"
+            assert ack1["seq"] == 1
+
+            status1 = ws.receive_json()
+            assert status1["type"] == "status"
+
+            ans1 = ws.receive_json()
+            assert ans1["type"] == "answer"
+            assert ans1["seq"] == 2
+            assert ans1["in_reply_to"] == ack1["id"]
+            assert ans1["text"] == "Answer for: First Q"
+
+            # Turn 2
+            ws.send_json({"type": "question", "client_msg_id": "c-2", "question": "Second Q", "mode": "qa"})
+            ack2 = ws.receive_json()
+            assert ack2["type"] == "student_ack"
+            assert ack2["client_msg_id"] == "c-2"
+            assert ack2["seq"] == 3
+
+            assert ws.receive_json()["type"] == "status"
+
+            ans2 = ws.receive_json()
+            assert ans2["type"] == "answer"
+            assert ans2["seq"] == 4
+            assert ans2["in_reply_to"] == ack2["id"]
+
+        # Reconnect and confirm exact bubble positions are preserved
+        with client.websocket_connect(f"/api/v1/tutor/ws?token={token}") as ws2:
+            assert ws2.receive_json()["type"] == "connected"
+            hist = ws2.receive_json()
+            assert hist["type"] == "history"
+            msgs = hist["messages"]
+            assert [(m["seq"], m["sender"], m["text"]) for m in msgs] == [
+                (1, "student", "First Q"),
+                (2, "tutor", "Answer for: First Q"),
+                (3, "student", "Second Q"),
+                (4, "tutor", "Answer for: Second Q"),
+            ]
