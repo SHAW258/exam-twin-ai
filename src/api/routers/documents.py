@@ -168,11 +168,14 @@ def list_documents(
     current_student: Student = Depends(get_current_student),
     db_manager: DatabaseManager = Depends(get_db_manager),
 ) -> List[DocumentListItem]:
-    """Return catalog of documents owned by the current student."""
+    """Return catalog of documents owned by the current student (or all documents for admins)."""
     with db_manager.get_session() as session:
-        stmt = select(Document).where(
-            Document.owner_user_id == current_student.external_student_id
-        ).order_by(Document.created_at.desc())
+        if bool(getattr(current_student, "is_admin", False)):
+            stmt = select(Document).order_by(Document.created_at.desc())
+        else:
+            stmt = select(Document).where(
+                Document.owner_user_id == current_student.external_student_id
+            ).order_by(Document.created_at.desc())
 
         docs = session.execute(stmt).scalars().all()
         return [
@@ -207,8 +210,8 @@ def get_document_details(
                 detail=f"Document '{document_id}' not found.",
             )
 
-        # Enforce access boundary - user can only view their own documents
-        if doc.owner_user_id != current_student.external_student_id:
+        # Enforce access boundary - user can only view their own documents unless admin
+        if not bool(getattr(current_student, "is_admin", False)) and doc.owner_user_id != current_student.external_student_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: You do not have permission to view this document.",
@@ -243,7 +246,7 @@ def delete_document(
                 detail=f"Document '{document_id}' not found.",
             )
 
-        if doc.owner_user_id != current_student.external_student_id:
+        if not bool(getattr(current_student, "is_admin", False)) and doc.owner_user_id != current_student.external_student_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: You do not have permission to delete this document.",

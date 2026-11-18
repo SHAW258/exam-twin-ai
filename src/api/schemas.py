@@ -119,6 +119,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     student_id: str
     expires_in_minutes: int
+    is_admin: bool = False
 
 
 class StudentProfileResponse(BaseModel):
@@ -129,6 +130,7 @@ class StudentProfileResponse(BaseModel):
     email: Optional[str] = None
     full_name: Optional[str] = None
     is_active: bool
+    is_admin: bool = False
     total_diagnoses_count: int
     topics_tracked_count: int
     created_at: Optional[str] = None

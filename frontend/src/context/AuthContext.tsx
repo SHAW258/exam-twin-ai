@@ -7,7 +7,7 @@ interface AuthContextType {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (payload: StudentLoginPayload) => Promise<void>
+  login: (payload: StudentLoginPayload) => Promise<StudentProfile>
   register: (payload: StudentRegisterPayload) => Promise<void>
   logout: () => void
   refreshStudent: () => Promise<void>
@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshStudent()
   }, [refreshStudent])
 
-  const login = async (payload: StudentLoginPayload) => {
+  const login = async (payload: StudentLoginPayload): Promise<StudentProfile> => {
     setIsLoading(true)
     try {
       const res = await api.auth.login(payload)
@@ -55,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // fetch profile
       const profile = await api.auth.getMe()
       setStudent(profile)
+      return profile
     } finally {
       setIsLoading(false)
     }

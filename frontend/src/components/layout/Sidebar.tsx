@@ -15,6 +15,7 @@ import {
   HelpCircle,
   LogOut,
   GraduationCap,
+  ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -26,6 +27,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const { student, logout } = useAuth()
 
   const navGroups = [
+    ...(student?.is_admin
+      ? [
+          {
+            title: 'ADMINISTRATION',
+            items: [
+              { name: 'Admin Console & DB', path: '/admin', icon: ShieldCheck },
+            ],
+          },
+        ]
+      : []),
     {
       title: 'LEARNING EXPERIENCE',
       items: [
@@ -117,8 +128,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
                 {(student.full_name || student.external_student_id || 'S')[0].toUpperCase()}
               </div>
               <div className="truncate">
-                <p className="text-xs font-semibold text-slate-900 truncate">
-                  {student.full_name || student.external_student_id}
+                <p className="text-xs font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                  <span className="truncate">{student.full_name || student.external_student_id}</span>
+                  {student.is_admin && (
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-200 shrink-0">
+                      Admin
+                    </span>
+                  )}
                 </p>
                 <p className="text-[11px] text-slate-500 truncate">{student.email || 'Student Account'}</p>
               </div>

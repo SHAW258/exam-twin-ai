@@ -376,12 +376,14 @@ def login_student(
                 detail="Student account has been deactivated.",
             )
 
-        access_token = create_access_token(data={"sub": student.external_student_id})
+        is_admin = bool(getattr(student, "is_admin", False))
+        access_token = create_access_token(data={"sub": student.external_student_id, "is_admin": is_admin})
         return TokenResponse(
             access_token=access_token,
             token_type="bearer",
             student_id=student.external_student_id,
             expires_in_minutes=getattr(settings, "JWT_ACCESS_TOKEN_EXPIRE_MINUTES", 1440),
+            is_admin=is_admin,
         )
 
 
@@ -414,6 +416,7 @@ def get_current_student_profile(
         email=current_student.email,
         full_name=current_student.full_name,
         is_active=current_student.is_active,
+        is_admin=bool(getattr(current_student, "is_admin", False)),
         total_diagnoses_count=diagnoses_count,
         topics_tracked_count=topics_count,
         created_at=current_student.created_at.isoformat() if current_student.created_at else None,

@@ -66,6 +66,13 @@ class Student(Base):
         nullable=False,
         doc="Account active flag.",
     )
+    is_admin = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+        server_default="0",
+        doc="Platform administrator privilege flag.",
+    )
     created_at = Column(
         DateTime,
         nullable=False,
@@ -99,6 +106,7 @@ class Student(Base):
             "email": self.email,
             "full_name": self.full_name,
             "is_active": self.is_active,
+            "is_admin": bool(getattr(self, "is_admin", False)),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "total_diagnoses_count": len(self.error_history) if self.error_history else 0,

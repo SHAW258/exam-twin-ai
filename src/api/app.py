@@ -7,7 +7,7 @@ from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from src.api.routers import assessments, auth, documents, learning, measurements, support, tutor
+from src.api.routers import admin, assessments, auth, documents, learning, measurements, support, tutor
 from src.config.settings import get_settings
 from src.ingestion.pdf_loader import (
     InvalidPDFSignatureError,
@@ -84,9 +84,11 @@ def create_app() -> FastAPI:
         """Verify and initialize database tables on startup (Render/PostgreSQL compatibility)."""
         try:
             from src.database.connection import get_db_manager
-            from src.database.schema import create_tables
-            create_tables(get_db_manager())
-            logger.info("Database schema verified on startup.")
+            from src.database.schema import create_tables, ensure_default_admin
+            db_mgr = get_db_manager()
+            create_tables(db_mgr)
+            ensure_default_admin(db_mgr)
+            logger.info("Database schema and default admin verified on startup.")
         except Exception as exc:
             logger.warning("Database schema check warning on startup: %s", exc)
 
@@ -165,6 +167,7 @@ def create_app() -> FastAPI:
     api_v1.include_router(assessments.router)
     api_v1.include_router(measurements.router)
     api_v1.include_router(support.router)
+    api_v1.include_router(admin.router)
 
     app.include_router(api_v1)
 

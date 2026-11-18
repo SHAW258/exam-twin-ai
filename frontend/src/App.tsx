@@ -33,6 +33,9 @@ import { TopicMasteryPage } from './pages/analytics/TopicMasteryPage'
 import { ProfilePage } from './pages/account/ProfilePage'
 import { HelpPage } from './pages/support/HelpPage'
 
+// Administrator Console Page
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage'
+
 // Global Application States & Error Boundaries
 import { GlobalErrorPage } from './pages/error/GlobalErrorPage'
 
@@ -89,6 +92,9 @@ export const App: React.FC = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<Navigate to="/profile" replace />} />
             <Route path="/help" element={<HelpPage />} />
+
+            {/* Group F: Administrator Console */}
+            <Route path="/admin" element={<AdminDashboardPage />} />
           </Route>
 
           {/* Error & Fallback Routes */}

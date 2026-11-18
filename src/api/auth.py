@@ -246,3 +246,15 @@ def get_current_student(
 
         # Detach/return or copy attributes to avoid session lifecycle issues
         return student
+
+
+def get_current_admin(
+    current_student: Student = Depends(get_current_student),
+) -> Student:
+    """FastAPI dependency restricting endpoint access strictly to administrator accounts."""
+    if not bool(getattr(current_student, "is_admin", False)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator privileges required to access this resource.",
+        )
+    return current_student

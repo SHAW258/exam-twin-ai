@@ -36,9 +36,10 @@ export const SignInPage: React.FC = () => {
     setError(null)
     setIsSubmitting(true)
     try {
-      await login({ username: username.trim(), password })
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard'
-      navigate(from, { replace: true })
+      const profile = await login({ username: username.trim(), password })
+      const requestedFrom = (location.state as { from?: { pathname: string } })?.from?.pathname
+      const defaultDest = profile?.is_admin ? '/admin' : '/dashboard'
+      navigate(requestedFrom || defaultDest, { replace: true })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid student credentials.'
       setError(msg)

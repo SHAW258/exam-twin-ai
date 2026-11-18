@@ -19,6 +19,9 @@ import type {
   MeasurementResponse,
   SupportTicket,
   SupportTicketPayload,
+  AdminOverviewResponse,
+  AdminTableRowsResponse,
+  AdminPdfDetailResponse,
   ApiErrorResponse,
 } from '../types/api'
 
@@ -359,5 +362,25 @@ export const api = {
 
     listTickets: (): Promise<SupportTicket[]> =>
       request<SupportTicket[]>('/api/v1/support/tickets'),
+  },
+
+  // Administrator Database & PDF Analytics
+  admin: {
+    getOverview: (): Promise<AdminOverviewResponse> =>
+      request<AdminOverviewResponse>('/api/v1/admin/overview'),
+
+    getTableRows: (tableName: string, limit = 200, offset = 0): Promise<AdminTableRowsResponse> =>
+      request<AdminTableRowsResponse>(
+        `/api/v1/admin/tables/${encodeURIComponent(tableName)}?limit=${limit}&offset=${offset}`
+      ),
+
+    getPdfDetail: (documentId: string): Promise<AdminPdfDetailResponse> =>
+      request<AdminPdfDetailResponse>(`/api/v1/admin/pdfs/${encodeURIComponent(documentId)}`),
+
+    deletePdf: (documentId: string): Promise<{ status: string; message: string }> =>
+      request<{ status: string; message: string }>(
+        `/api/v1/admin/pdfs/${encodeURIComponent(documentId)}`,
+        { method: 'DELETE' }
+      ),
   },
 }

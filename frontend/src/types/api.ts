@@ -47,6 +47,7 @@ export interface AuthTokenResponse {
   token_type: string;
   student_id: string;
   expires_in_minutes: number;
+  is_admin?: boolean;
 }
 
 export interface StudentProfile {
@@ -55,6 +56,7 @@ export interface StudentProfile {
   email?: string;
   full_name?: string;
   is_active: boolean;
+  is_admin?: boolean;
   total_diagnoses_count: number;
   topics_tracked_count: number;
   created_at?: string;
@@ -277,6 +279,100 @@ export interface SupportTicket {
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | string;
   created_at?: string;
   updated_at?: string;
+}
+
+// ==========================================
+// Administrator Console & Database Explorer
+// ==========================================
+export interface AdminTableStat {
+  table_name: string;
+  display_name: string;
+  row_count: number;
+  column_count: number;
+  columns: string[];
+}
+
+export interface AdminPdfItem {
+  id: string;
+  title: string;
+  filename: string;
+  owner_user_id: string;
+  owner_email?: string | null;
+  owner_full_name?: string | null;
+  access_level: string;
+  processing_status: string;
+  content_type: string;
+  source_type: string;
+  pages_count: number;
+  chunks_count: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface AdminOverviewResponse {
+  summary: {
+    total_tables: number;
+    total_rows: number;
+    total_users: number;
+    total_students: number;
+    total_admins: number;
+    total_pdfs: number;
+    total_pages: number;
+    total_chunks: number;
+    total_chat_messages: number;
+    total_diagnoses: number;
+    total_mastery_records: number;
+    total_assessments: number;
+    total_ai_practice_records: number;
+    total_support_tickets: number;
+  };
+  table_stats: AdminTableStat[];
+  pdfs: AdminPdfItem[];
+  charts: {
+    rows_by_table: Array<{ table_name: string; name: string; count: number }>;
+    pdfs_by_student: Array<{
+      student: string;
+      owner_user_id: string;
+      pdf_count: number;
+      pages_count: number;
+      chunks_count: number;
+    }>;
+    pdfs_by_status: Array<{ status: string; count: number }>;
+    chat_by_mode: Array<{ mode: string; count: number }>;
+    chat_by_sender: Array<{ sender: string; count: number }>;
+    errors_by_category: Array<{ category: string; count: number }>;
+    mastery_distribution: Array<{ bucket: string; count: number }>;
+  };
+}
+
+export interface AdminTableRowsResponse {
+  table_name: string;
+  display_name: string;
+  total_rows: number;
+  limit: number;
+  offset: number;
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
+}
+
+export interface AdminPdfDetailResponse {
+  id: string;
+  title: string;
+  filename: string;
+  owner_user_id: string;
+  owner_email?: string | null;
+  owner_full_name?: string | null;
+  access_level: string;
+  processing_status: string;
+  pages_count: number;
+  chunks_count: number;
+  created_at?: string | null;
+  pages: Array<{
+    id: string;
+    page_number: number;
+    text: string;
+    char_count: number;
+  }>;
 }
 
 // ==========================================
