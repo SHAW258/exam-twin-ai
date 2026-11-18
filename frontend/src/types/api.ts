@@ -94,6 +94,8 @@ export interface TutorAskPayload {
   document_ids?: string[];
   topic?: string;
   mode?: TutorMode;
+  question_count?: number;
+  seed?: number;
 }
 
 export interface SourceCitation {

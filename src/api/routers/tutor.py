@@ -120,6 +120,9 @@ def ask_ai_tutor(
             topic=topic_target,
             user_id=student_id,
             document_ids=payload.document_ids,
+            question_count=payload.question_count or 3,
+            query_instruction=payload.question,
+            seed=payload.seed,
         )
     else:  # default 'qa'
         result = rag_service.answer_question(
@@ -391,6 +394,9 @@ async def tutor_websocket(
                             topic=topic or user_question,
                             user_id=student_id,
                             document_ids=doc_ids,
+                            question_count=data.get("question_count", 3),
+                            query_instruction=user_question,
+                            seed=data.get("seed"),
                         )
                     else:
                         return rag_service.answer_question(

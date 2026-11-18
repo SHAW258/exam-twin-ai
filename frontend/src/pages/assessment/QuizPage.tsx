@@ -111,50 +111,65 @@ export const QuizPage: React.FC = () => {
     setSubmitted(false)
     setShowResults(false)
     try {
-      // generate in batches (3 per call) until we reach requested count or run out
-      const collected: MCQ[] = []
+      const uniq: MCQ[] = []
+      const seen = new Set<string>()
       const kinds: TutorSourceKind[] = []
       let aiPracticeId: string | null = null
       let sawInsufficient = false
-      const calls = Math.ceil(questionCount / 3)
+
       const promptFocus = state.drillMode === 'error'
         ? 'Focus heavily on common misconceptions, tricky edge cases, and high-frequency conceptual traps.'
         : 'Focus on key concepts, definitions, facts, and explanations.'
-      for (let i = 0; i < calls; i++) {
+
+      // Up to 3 attempts to reach the target question count without duplicates
+      for (let attempt = 0; attempt < 3 && uniq.length < questionCount; attempt++) {
+        const needed = questionCount - uniq.length
+        const currentSeed = (retryKey + 1) * 100 + attempt
+
         const res = await api.tutor.ask({
-          question: `Generate practice MCQs for ${topic} from the best available course material. ${promptFocus} Session variation ${retryKey + 1}-${i + 1}.`,
+          question: `Generate ${needed} distinct, non-repetitive practice MCQs for ${topic} from the best available course material. ${promptFocus} Session variation ${currentSeed}.`,
           mode: 'practice',
           topic,
           document_ids: documentIds,
+          question_count: needed,
+          seed: currentSeed,
         })
         kinds.push(res.source_kind || 'none')
         if (!aiPracticeId && res.practice_record_id) aiPracticeId = res.practice_record_id
 
         const parsed = tryParseQuestions(res.answer)
-        if (parsed.insufficient && collected.length === 0) {
+        if (parsed.insufficient && uniq.length === 0) {
           sawInsufficient = true
           setInsufficientMessage(parsed.message || res.answer || 'Not enough matching course material to generate questions on this topic.')
           break
         }
+
         if (parsed.questions.length > 0) {
-          collected.push(...parsed.questions)
-        } else if (res.answer && collected.length === 0) {
+          for (const q of parsed.questions) {
+            const k = q.question.trim().toLowerCase()
+            if (!seen.has(k)) {
+              seen.add(k)
+              uniq.push(q)
+            }
+          }
+        } else if (res.answer && uniq.length === 0) {
           // fallback: create a single question-like card from text
-          collected.push({ question: res.answer, options: [], correct_option_index: -1, explanation: 'Review the material and try again for MCQ format.' })
+          uniq.push({ question: res.answer, options: [], correct_option_index: -1, explanation: 'Review the material and try again for MCQ format.' })
+          break
         }
-        if (collected.length >= questionCount) break
+
+        // If the model produced 0 questions on this attempt, break to prevent redundant calls
+        if (parsed.questions.length === 0) {
+          break
+        }
       }
-      // de-dup by question text
-      const uniq: MCQ[] = []
-      const seen = new Set<string>()
-      for (const q of collected) {
-        const k = q.question.trim().toLowerCase()
-        if (!seen.has(k)) { seen.add(k); uniq.push(q) }
-      }
+
       setQuestions(uniq.slice(0, questionCount))
       setSourceKind(strongestSource(kinds))
       setPracticeRecordId(aiPracticeId)
-      if (uniq.length === 0 && !sawInsufficient) setInsufficientMessage('Could not generate questions from the available course material. Try another topic or upload material with more content.')
+      if (uniq.length === 0 && !sawInsufficient) {
+        setInsufficientMessage('Could not generate questions from the available course material. Try another topic or upload material with more content.')
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to generate practice questions.')
     } finally {

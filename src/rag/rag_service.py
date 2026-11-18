@@ -491,8 +491,11 @@ class RAGService:
         self,
         topic: str,
         user_id: Optional[str] = None,
-        top_k: int = 3,
+        top_k: Optional[int] = None,
         document_ids: Optional[List[str]] = None,
+        question_count: int = 3,
+        query_instruction: Optional[str] = None,
+        seed: Optional[int] = None,
     ) -> RAGResponse:
         """Generate an interactive drill from a PDF first, then global PDFs, then general AI.
 
@@ -502,10 +505,14 @@ class RAGService:
         if not topic or not topic.strip():
             raise ValueError("Topic cannot be empty or whitespace-only.")
 
+        target_count = max(1, min(25, question_count))
+        # Dynamically scale retrieved chunk budget according to requested question count
+        retrieval_k = top_k if top_k is not None else max(5, min(25, target_count * 2))
+
         chunks, source_kind = self._retrieve_with_priority(
             question=topic.strip(),
             user_id=user_id,
-            top_k=top_k,
+            top_k=retrieval_k,
             document_ids=document_ids,
         )
         anonymous = source_kind == "global_document"
@@ -522,8 +529,9 @@ class RAGService:
                     source_kind="none",
                 )
 
+            seed_str = f" Session seed: #{seed}." if seed is not None else ""
             general_practice_prompt = (
-                f"You are CodeKnot AI Tutor. Generate 3 high-quality multiple-choice exam practice questions for university students on the topic: '{topic.strip()}'.\n"
+                f"You are CodeKnot AI Tutor. Generate {target_count} high-quality, distinct, non-repetitive multiple-choice exam practice questions for university students on the topic: '{topic.strip()}'.{seed_str}\n"
                 f"Return ONLY valid JSON (no markdown code fences) in this exact format:\n"
                 f'{{"questions":[{{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct_option_index":0,"explanation":"Clear explanation of why this answer is correct."}}],"insufficient":false,"message":""}}'
             )
@@ -549,21 +557,30 @@ class RAGService:
                 source_kind="general_ai",
             )
 
-        citations = [] if anonymous else self._extract_unique_citations(chunks)
+        # If multiple chunks exist and a variation seed is provided, rotate chunks to explore different pages
+        active_chunks = chunks
+        if len(chunks) > 1 and seed is not None and seed > 0:
+            offset = seed % len(chunks)
+            active_chunks = chunks[offset:] + chunks[:offset]
+
+        citations = [] if anonymous else self._extract_unique_citations(active_chunks)
         prompt = self.prompt_builder.build_practice_question_prompt(
             topic=topic,
-            chunks=chunks,
+            chunks=active_chunks,
             include_provenance=not anonymous,
+            question_count=target_count,
+            query_instruction=query_instruction,
+            seed=seed,
         )
         practice_text = self._clean_json_text(self.llm_service.generate(prompt))
         if anonymous:
             practice_text = self._strip_source_fields_from_json(practice_text)
-            practice_text = self._scrub_source_references(practice_text, chunks)
+            practice_text = self._scrub_source_references(practice_text, active_chunks)
 
         return RAGResponse(
             answer=practice_text,
             sources=citations,
-            retrieved_chunks=len(chunks),
+            retrieved_chunks=len(active_chunks),
             is_grounded=True,
             question=topic,
             source_kind=source_kind,

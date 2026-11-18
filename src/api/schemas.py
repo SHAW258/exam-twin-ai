@@ -207,6 +207,16 @@ class TutorAskRequest(BaseModel):
         default="qa",
         description="Interaction mode: 'qa' (grounded answer), 'hint' (Socratic hint), or 'practice' (retest question).",
     )
+    question_count: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=25,
+        description="Optional target count of MCQs to generate when mode is 'practice'.",
+    )
+    seed: Optional[int] = Field(
+        default=None,
+        description="Optional randomization seed or retry variation key to ensure diverse questions.",
+    )
 
 
 class TutorAskResponse(BaseModel):

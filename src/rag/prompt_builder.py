@@ -168,14 +168,20 @@ class PromptBuilder:
         topic: str,
         chunks: List[RetrievedContextChunk],
         include_provenance: bool = True,
+        question_count: int = 3,
+        query_instruction: Optional[str] = None,
+        seed: Optional[int] = None,
     ) -> str:
-        """Build prompt for generating a new grounded practice question based on retrieved material.
+        """Build prompt for generating new grounded practice questions based on retrieved material.
 
         Args:
             topic: Topic focus for the drill.
             chunks: Retrieved context chunks.
             include_provenance: False for the anonymous global database path. The JSON schema then
                 omits source_page and the prompt forbids any source/page reference.
+            question_count: Number of distinct MCQs requested (default 3, up to 25).
+            query_instruction: Optional additional drill instructions (e.g., focus on misconceptions).
+            seed: Optional randomization seed to generate diverse, non-repetitive question sets.
         """
         context_block = self.build_context_block(chunks, include_provenance=include_provenance)
         system_prompt = SYSTEM_PROMPT_GROUNDED if include_provenance else SYSTEM_PROMPT_ANONYMOUS
@@ -187,10 +193,14 @@ class PromptBuilder:
             else " Never include a source_page field or any document, file name, page number, or source reference in the JSON."
         )
 
+        target_count = max(1, min(25, question_count))
+        variation_note = f"\nVariation Seed: #{seed}. Explore different sections and formulate fresh questions." if seed is not None else ""
+        focus_note = f"\nSpecific Focus: {query_instruction.strip()}" if query_instruction and query_instruction.strip() else ""
+
         prompt = (
             f"[SYSTEM INSTRUCTIONS]\n"
             f"{system_prompt.strip()}\n"
-            f"Additional Directive: Generate an exam practice question strictly from the provided context. Do not invent facts, numbers, student records, or topics not supported by the context. If the context is insufficient, respond with a short JSON object indicating insufficient information.\n\n"
+            f"Additional Directive: Generate an exam practice question strictly from the provided context. Do not invent facts, numbers, student records, or topics not supported by the context. If the context is insufficient, respond with a short JSON object indicating insufficient information.{variation_note}{focus_note}\n\n"
             f"[{context_heading}]\n"
             f"{context_block}\n\n"
             f"[TOPIC FOCUS]\n"
@@ -210,7 +220,7 @@ class PromptBuilder:
             f"  \"insufficient\": false,\n"
             f"  \"message\": \"\"\n"
             f"}}\n"
-            f"Rules: generate 3 high-quality MCQs when possible; every question must be answerable from the context; options must be relevant; correct_option_index is 0-based; if not enough information, set insufficient=true with a clear message and an empty questions array.{extra_rule}"
+            f"Rules: generate exactly {target_count} high-quality MCQs when possible (do NOT repeat concepts or question stems; each question must evaluate a distinct concept, component, or detail from the context); every question must be answerable from the context; options must be relevant; correct_option_index is 0-based; if not enough information, set insufficient=true with a clear message and an empty questions array.{extra_rule}"
         )
         return prompt
 
