@@ -31,6 +31,23 @@ def _ensure_students_is_admin_column(engine: Engine) -> None:
         logger.warning("Could not verify/add `is_admin` column on `students`: %s", exc)
 
 
+def _ensure_tutor_chat_seq_column(engine: Engine) -> None:
+    """Safely add monotonic `seq` column to existing `tutor_chat_messages` tables if missing."""
+    try:
+        inspector = inspect(engine)
+        if "tutor_chat_messages" not in inspector.get_table_names():
+            return
+        existing_cols = {col["name"] for col in inspector.get_columns("tutor_chat_messages")}
+        if "seq" not in existing_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE tutor_chat_messages ADD COLUMN seq INTEGER NOT NULL DEFAULT 0")
+                )
+            logger.info("Migrated `tutor_chat_messages` table: added `seq` column.")
+    except Exception as exc:
+        logger.warning("Could not verify/add `seq` column on `tutor_chat_messages`: %s", exc)
+
+
 def ensure_default_admin(target: Optional[DatabaseManager] = None) -> None:
     """Ensure a default platform administrator account exists in the `students` table."""
     from src.api.auth import hash_password
@@ -95,6 +112,7 @@ def create_tables(target: Optional[Union[Engine, DatabaseManager]] = None) -> No
 
     Base.metadata.create_all(bind=engine)
     _ensure_students_is_admin_column(engine)
+    _ensure_tutor_chat_seq_column(engine)
 
 
 def drop_tables(target: Optional[Union[Engine, DatabaseManager]] = None) -> None:

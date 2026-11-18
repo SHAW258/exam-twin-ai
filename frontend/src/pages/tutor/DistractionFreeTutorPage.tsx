@@ -16,38 +16,22 @@ import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
 import { MarkdownMessage } from '../../components/tutor/MarkdownMessage'
+import {
+  type ChatMessage,
+  deriveSourceKind,
+  formatHistoryItems,
+  mergeServerHistory,
+  applyStudentAck,
+  insertAnchoredAnswer,
+} from '../../components/tutor/chatState'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
 import type {
   TutorAskResponse,
   TutorMode,
-  TutorSourceKind,
-  SourceCitation,
   TutorChatMessageItem,
 } from '../../types/api'
 
 type ChatMode = Exclude<TutorMode, 'practice'>
-
-interface ChatMessage {
-  id: string
-  sender: 'student' | 'tutor'
-  text: string
-  citations?: SourceCitation[]
-  grounded?: boolean
-  mode?: TutorMode
-  sourceKind?: TutorSourceKind
-  timestamp: string
-}
-
-/** Derive provenance for older stored messages that predate the source_kind field. */
-const deriveSourceKind = (item: {
-  grounded?: boolean
-  citations?: SourceCitation[]
-  mode?: string
-}): TutorSourceKind => {
-  if (!item.grounded) return item.mode === 'practice' ? 'general_ai' : 'none'
-  if (!item.citations || item.citations.length === 0) return 'global_document'
-  return 'own_document'
-}
 
 const INITIAL_WELCOME: ChatMessage = {
   id: 'focus-init',
@@ -101,19 +85,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
       .getHistory(50)
       .then((history: TutorChatMessageItem[]) => {
         if (history && history.length > 0) {
-          const formatted: ChatMessage[] = history.map((item) => ({
-            id: item.id,
-            sender: item.sender,
-            text: item.text,
-            citations: item.citations || [],
-            grounded: item.grounded ?? true,
-            mode: item.mode,
-            sourceKind: deriveSourceKind(item),
-            timestamp: item.timestamp
-              ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : 'Earlier',
-          }))
-          setMessages(formatted)
+          const formatted = formatHistoryItems(history)
+          setMessages((prev) => mergeServerHistory(prev, formatted))
         }
       })
       .catch((err) => {
@@ -159,20 +132,18 @@ export const DistractionFreeTutorPage: React.FC = () => {
 
             if (data.type === 'history' && Array.isArray(data.messages)) {
               if (data.messages.length > 0) {
-                const formatted: ChatMessage[] = data.messages.map((item: TutorChatMessageItem) => ({
-                  id: item.id,
-                  sender: item.sender,
-                  text: item.text,
-                  citations: item.citations || [],
-                  grounded: item.grounded ?? true,
-                  mode: item.mode,
-                  sourceKind: deriveSourceKind(item),
-                  timestamp: item.timestamp
-                    ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : 'Earlier',
-                }))
-                setMessages(formatted)
+                const formatted = formatHistoryItems(data.messages as TutorChatMessageItem[])
+                setMessages((prev) => mergeServerHistory(prev, formatted))
               }
+            } else if (data.type === 'student_ack') {
+              setMessages((prev) =>
+                applyStudentAck(prev, {
+                  client_msg_id: data.client_msg_id,
+                  id: data.id,
+                  seq: data.seq,
+                  timestamp: data.timestamp,
+                })
+              )
             } else if (data.type === 'status') {
               setStatusMessage(data.message || 'Consulting verified course material...')
             } else if (data.type === 'answer') {
@@ -180,6 +151,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
               setStatusMessage('')
               const tutorMsg: ChatMessage = {
                 id: data.id || `tut-${Date.now()}`,
+                seq: typeof data.seq === 'number' ? data.seq : undefined,
+                inReplyTo: data.in_reply_to,
                 sender: 'tutor',
                 text: data.text,
                 citations: data.citations || [],
@@ -190,7 +163,9 @@ export const DistractionFreeTutorPage: React.FC = () => {
                   ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               }
-              setMessages((prev) => [...prev, tutorMsg])
+              setMessages((prev) =>
+                insertAnchoredAnswer(prev, tutorMsg, data.in_reply_to, data.client_msg_id)
+              )
             } else if (data.type === 'history_cleared') {
               setMessages([INITIAL_WELCOME])
               setIsLoading(false)
@@ -250,10 +225,14 @@ export const DistractionFreeTutorPage: React.FC = () => {
     const cleanText = question.trim()
     if (!cleanText || isLoading) return
 
+    const clientMsgId = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
+      id: clientMsgId,
+      clientMsgId,
+      pending: true,
       sender: 'student',
       text: cleanText,
+      mode,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
@@ -273,6 +252,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
       wsRef.current.send(
         JSON.stringify({
           type: 'question',
+          client_msg_id: clientMsgId,
           question: cleanText,
           mode,
         })
@@ -289,6 +269,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
 
       const tutorMsg: ChatMessage = {
         id: `tut-${Date.now()}`,
+        inReplyTo: clientMsgId,
         sender: 'tutor',
         text: res.answer,
         citations: res.citations || [],
@@ -298,7 +279,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
 
-      setMessages((prev) => [...prev, tutorMsg])
+      setMessages((prev) => insertAnchoredAnswer(prev, tutorMsg, clientMsgId, clientMsgId))
     } catch (err: unknown) {
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
@@ -423,8 +404,8 @@ export const DistractionFreeTutorPage: React.FC = () => {
 
             if (msg.sender === 'student') {
               return (
-                <div key={msg.id} className="flex justify-end">
-                  <div className="max-w-2xl rounded-2xl bg-indigo-600 text-white px-5 py-3.5 text-sm sm:text-base shadow-xs rounded-br-xs">
+                <div key={msg.clientMsgId || msg.id} className="flex justify-end w-full">
+                  <div className="max-w-[82%] sm:max-w-[75%] rounded-2xl rounded-br-sm bg-indigo-600 text-white px-5 py-3.5 text-sm sm:text-base shadow-xs break-words">
                     <p className="whitespace-pre-wrap">{msg.text}</p>
                     <span className="block text-[10px] text-indigo-200 text-right mt-1">
                       {msg.timestamp}

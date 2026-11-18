@@ -222,6 +222,7 @@ class TutorChatMessage(Base):
 
     id = Column(String(64), primary_key=True, default=lambda: f"msg_{uuid.uuid4().hex[:16]}")
     student_id = Column(String(64), nullable=False, index=True)
+    seq = Column(Integer, nullable=False, default=0, server_default="0", index=True)
     sender = Column(String(16), nullable=False)  # 'student' | 'tutor'
     text = Column(Text, nullable=False)
     mode = Column(String(32), nullable=True, default="qa")
@@ -243,6 +244,7 @@ class TutorChatMessage(Base):
                 cits = []
         return {
             "id": self.id,
+            "seq": int(self.seq or 0),
             "sender": self.sender,
             "text": self.text,
             "mode": self.mode or "qa",

@@ -21,11 +21,18 @@ import { CitationBadge } from '../../components/ui/Badge'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { parsePracticeDrillJson } from '../../components/tutor/InteractivePracticeDrill'
 import { MarkdownMessage } from '../../components/tutor/MarkdownMessage'
+import {
+  type ChatMessage,
+  deriveSourceKind,
+  formatHistoryItems,
+  mergeServerHistory,
+  applyStudentAck,
+  insertAnchoredAnswer,
+} from '../../components/tutor/chatState'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
 import type {
   TutorAskResponse,
   TutorMode,
-  TutorSourceKind,
   DocumentListItem,
   SourceCitation,
   TutorChatMessageItem,
@@ -33,29 +40,6 @@ import type {
 } from '../../types/api'
 
 type ChatMode = Exclude<TutorMode, 'practice'>
-
-interface ChatMessage {
-  id: string
-  sender: 'student' | 'tutor'
-  text: string
-  citations?: SourceCitation[]
-  grounded?: boolean
-  mode?: TutorMode
-  sourceKind?: TutorSourceKind
-  practiceRecordId?: string | null
-  timestamp: string
-}
-
-/** Derive provenance for older stored messages that predate the source_kind field. */
-const deriveSourceKind = (item: {
-  grounded?: boolean
-  citations?: SourceCitation[]
-  mode?: string
-}): TutorSourceKind => {
-  if (!item.grounded) return item.mode === 'practice' ? 'general_ai' : 'none'
-  if (!item.citations || item.citations.length === 0) return 'global_document'
-  return 'own_document'
-}
 
 const INITIAL_WELCOME: ChatMessage = {
   id: 'msg-init',
@@ -143,19 +127,8 @@ export const AITutorWorkspacePage: React.FC = () => {
       .getHistory(50)
       .then((history: TutorChatMessageItem[]) => {
         if (history && history.length > 0) {
-          const formatted: ChatMessage[] = history.map((item) => ({
-            id: item.id,
-            sender: item.sender,
-            text: item.text,
-            citations: item.citations || [],
-            grounded: item.grounded ?? true,
-            mode: item.mode,
-            sourceKind: deriveSourceKind(item),
-            timestamp: item.timestamp
-              ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : 'Earlier',
-          }))
-          setMessages(formatted)
+          const formatted = formatHistoryItems(history)
+          setMessages((prev) => mergeServerHistory(prev, formatted))
           const latestTutorWithCitations = [...formatted].reverse().find((m) => m.sender === 'tutor' && m.citations?.length)
           if (latestTutorWithCitations?.citations?.length) {
             setSelectedCitation(latestTutorWithCitations.citations[0])
@@ -206,24 +179,22 @@ export const AITutorWorkspacePage: React.FC = () => {
 
             if (data.type === 'history' && Array.isArray(data.messages)) {
               if (data.messages.length > 0) {
-                const formatted: ChatMessage[] = data.messages.map((item: TutorChatMessageItem) => ({
-                  id: item.id,
-                  sender: item.sender,
-                  text: item.text,
-                  citations: item.citations || [],
-                  grounded: item.grounded ?? true,
-                  mode: item.mode,
-                  sourceKind: deriveSourceKind(item),
-                  timestamp: item.timestamp
-                    ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : 'Earlier',
-                }))
-                setMessages(formatted)
+                const formatted = formatHistoryItems(data.messages as TutorChatMessageItem[])
+                setMessages((prev) => mergeServerHistory(prev, formatted))
                 const latestWithCits = [...formatted].reverse().find((m) => m.sender === 'tutor' && m.citations?.length)
                 if (latestWithCits?.citations?.length) {
                   setSelectedCitation(latestWithCits.citations[0])
                 }
               }
+            } else if (data.type === 'student_ack') {
+              setMessages((prev) =>
+                applyStudentAck(prev, {
+                  client_msg_id: data.client_msg_id,
+                  id: data.id,
+                  seq: data.seq,
+                  timestamp: data.timestamp,
+                })
+              )
             } else if (data.type === 'status') {
               setStatusMessage(data.message || 'Consulting verified course documents and finding citations...')
             } else if (data.type === 'answer') {
@@ -231,6 +202,8 @@ export const AITutorWorkspacePage: React.FC = () => {
               setStatusMessage('')
               const tutorMsg: ChatMessage = {
                 id: data.id || `tut-${Date.now()}`,
+                seq: typeof data.seq === 'number' ? data.seq : undefined,
+                inReplyTo: data.in_reply_to,
                 sender: 'tutor',
                 text: data.text,
                 citations: data.citations || [],
@@ -242,7 +215,9 @@ export const AITutorWorkspacePage: React.FC = () => {
                   ? new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                   : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               }
-              setMessages((prev) => [...prev, tutorMsg])
+              setMessages((prev) =>
+                insertAnchoredAnswer(prev, tutorMsg, data.in_reply_to, data.client_msg_id)
+              )
               if (data.citations?.length) {
                 setSelectedCitation(data.citations[0])
               }
@@ -307,10 +282,14 @@ export const AITutorWorkspacePage: React.FC = () => {
     const cleanText = textToSend.trim()
     if (!cleanText || isLoading) return
 
+    const clientMsgId = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
+      id: clientMsgId,
+      clientMsgId,
+      pending: true,
       sender: 'student',
       text: cleanText,
+      mode: activeMode,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     }
 
@@ -330,6 +309,7 @@ export const AITutorWorkspacePage: React.FC = () => {
       wsRef.current.send(
         JSON.stringify({
           type: 'question',
+          client_msg_id: clientMsgId,
           question: cleanText,
           mode: activeMode,
           topic: topic.trim() || undefined,
@@ -348,6 +328,7 @@ export const AITutorWorkspacePage: React.FC = () => {
 
       const tutorMsg: ChatMessage = {
         id: `tut-${Date.now()}`,
+        inReplyTo: clientMsgId,
         sender: 'tutor',
         text: res.answer,
         citations: res.citations || [],
@@ -358,7 +339,7 @@ export const AITutorWorkspacePage: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
 
-      setMessages((prev) => [...prev, tutorMsg])
+      setMessages((prev) => insertAnchoredAnswer(prev, tutorMsg, clientMsgId, clientMsgId))
       if (res.citations?.length) {
         setSelectedCitation(res.citations[0])
       }
@@ -531,32 +512,33 @@ export const AITutorWorkspacePage: React.FC = () => {
         )}
 
         {/* Chat Message Scrollable Container */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6 bg-gradient-to-b from-slate-50/50 to-white">
-          {messages.map((msg) => {
-            const parsedDrill = msg.sender === 'tutor' ? parsePracticeDrillJson(msg.text) : null
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 bg-gradient-to-b from-slate-50/50 to-white">
+          <div className="max-w-3xl mx-auto w-full space-y-5">
+            {messages.map((msg) => {
+              const parsedDrill = msg.sender === 'tutor' ? parsePracticeDrillJson(msg.text) : null
 
-            if (msg.sender === 'student') {
-              return (
-                <div key={msg.id} className="flex justify-end">
-                  <div className="max-w-xl rounded-2xl rounded-br-sm bg-indigo-600 text-white px-4 py-3 text-sm leading-relaxed shadow-xs">
-                    <div className="whitespace-pre-wrap">{msg.text}</div>
-                    <span className="block text-[10px] text-indigo-200/90 text-right mt-1.5">
-                      {msg.timestamp}
-                    </span>
+              if (msg.sender === 'student') {
+                return (
+                  <div key={msg.clientMsgId || msg.id} className="flex justify-end w-full">
+                    <div className="max-w-[82%] sm:max-w-[75%] rounded-2xl rounded-br-sm bg-indigo-600 text-white px-4 py-3 text-sm leading-relaxed shadow-xs break-words">
+                      <div className="whitespace-pre-wrap">{msg.text}</div>
+                      <span className="block text-[10px] text-indigo-200/90 text-right mt-1.5">
+                        {msg.timestamp}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )
-            }
+                )
+              }
 
-            return (
-              <div key={msg.id} className="flex items-start gap-3 max-w-3xl">
-                {/* Sleek AI Avatar */}
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                  <Sparkles className="w-4 h-4" />
-                </div>
+              return (
+                <div key={msg.id} className="flex items-start gap-3 w-full">
+                  {/* Sleek AI Avatar */}
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
 
-                {/* ChatGPT / Gemini style AI Response Card */}
-                <div className="flex-1 min-w-0 rounded-2xl rounded-tl-sm bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                  {/* ChatGPT / Gemini style AI Response Card */}
+                  <div className="flex-1 min-w-0 max-w-[90%] rounded-2xl rounded-tl-sm bg-white border border-slate-200/90 shadow-xs overflow-hidden">
                   {/* Card Header */}
                   <div className="flex items-center justify-between gap-2 px-5 py-3 bg-slate-50/60 border-b border-slate-100">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -633,7 +615,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           })}
 
           {isLoading && (
-            <div className="flex items-start gap-3 max-w-2xl">
+            <div className="flex items-start gap-3 w-full">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs animate-pulse">
                 <Sparkles className="w-4 h-4" />
               </div>
@@ -645,6 +627,7 @@ export const AITutorWorkspacePage: React.FC = () => {
           )}
 
           <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input Bar with Dynamic Mode Chips */}

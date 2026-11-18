@@ -116,6 +116,7 @@ export interface TutorAskResponse {
 
 export interface TutorChatMessageItem {
   id: string;
+  seq?: number;
   sender: 'student' | 'tutor';
   text: string;
   mode?: TutorMode;

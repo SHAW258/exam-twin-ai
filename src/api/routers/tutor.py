@@ -1,10 +1,11 @@
 """AI Tutor router providing course-grounded Q&A, Socratic hints, practice questions, and WebSocket chat."""
 
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 
 from src.api.auth import decode_access_token, get_current_student
 from src.api.schemas import AIPracticeRecordResponse, SourceCitationResponse, TutorAskRequest, TutorAskResponse
@@ -40,6 +41,32 @@ def _count_generated_questions(answer_text: str) -> int:
         return len(questions) if isinstance(questions, list) else 0
     except Exception:
         return 0
+
+
+def _next_chat_seq(session, student_id: str) -> int:
+    """Return next strictly monotonic sequence integer for a student's tutor conversation."""
+    max_seq = session.execute(
+        select(func.max(TutorChatMessage.seq)).where(TutorChatMessage.student_id == student_id)
+    ).scalar()
+    return int(max_seq or 0) + 1
+
+
+def _fetch_ordered_chat_history(session, student_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """Return chronological chat messages with deterministic tie-breaking even on 1-second MySQL timestamps."""
+    sender_rank = case((TutorChatMessage.sender == "tutor", 1), else_=0)
+    stmt = (
+        select(TutorChatMessage)
+        .where(TutorChatMessage.student_id == student_id)
+        .order_by(
+            TutorChatMessage.seq.desc(),
+            TutorChatMessage.created_at.desc(),
+            sender_rank.desc(),
+            TutorChatMessage.id.desc(),
+        )
+        .limit(limit)
+    )
+    msgs = session.execute(stmt).scalars().all()
+    return [m.to_dict() for m in reversed(msgs)]
 
 
 def _record_ai_practice(
@@ -128,23 +155,29 @@ def ask_ai_tutor(
     if mode != "practice":
         try:
             with db_manager.get_session() as session:
-                # 1. Student query
+                base_seq = _next_chat_seq(session, student_id)
+                now_ts = datetime.now(timezone.utc)
+                # 1. Student query (strictly earlier seq & timestamp than tutor reply)
                 msg_student = TutorChatMessage(
                     student_id=student_id,
+                    seq=base_seq,
                     sender="student",
                     text=payload.question,
                     mode=mode,
+                    created_at=now_ts,
                 )
                 session.add(msg_student)
 
-                # 2. Tutor response
+                # 2. Tutor response (strictly base_seq + 1 so bubbles never flip)
                 msg_tutor = TutorChatMessage(
                     student_id=student_id,
+                    seq=base_seq + 1,
                     sender="tutor",
                     text=result.answer,
                     mode=mode,
                     grounded=result.is_grounded,
                     citations=json.dumps([c.model_dump() for c in citations]),
+                    created_at=now_ts + timedelta(seconds=1),
                 )
                 session.add(msg_tutor)
         except Exception as exc:
@@ -195,14 +228,7 @@ def get_chat_history(
     """Return chronological past conversation messages for the current student."""
     student_id = current_student.external_student_id
     with db_manager.get_session() as session:
-        stmt = (
-            select(TutorChatMessage)
-            .where(TutorChatMessage.student_id == student_id)
-            .order_by(TutorChatMessage.created_at.desc())
-            .limit(limit)
-        )
-        msgs = session.execute(stmt).scalars().all()
-        return [m.to_dict() for m in reversed(msgs)]
+        return _fetch_ordered_chat_history(session, student_id, limit=limit)
 
 
 @router.delete(
@@ -271,17 +297,10 @@ async def tutor_websocket(
         "message": "Connected to CodeKnot AI Tutor live WebSocket.",
     })
 
-    # Dispatch recent chat history immediately so client holds previous chat
+    # Dispatch recent chat history immediately so client holds previous chat in exact order
     try:
         with db_manager.get_session() as session:
-            stmt = (
-                select(TutorChatMessage)
-                .where(TutorChatMessage.student_id == student_id)
-                .order_by(TutorChatMessage.created_at.desc())
-                .limit(50)
-            )
-            msgs = session.execute(stmt).scalars().all()
-            history = [m.to_dict() for m in reversed(msgs)]
+            history = _fetch_ordered_chat_history(session, student_id, limit=50)
             await websocket.send_json({
                 "type": "history",
                 "messages": history,
@@ -315,17 +334,23 @@ async def tutor_websocket(
                 mode = data.get("mode", "qa").lower().strip()
                 topic = data.get("topic")
                 doc_ids = data.get("document_ids")
+                client_msg_id = data.get("client_msg_id")
 
-                # 1. Persist student message in DB (practice drills stay out of tutor chat)
+                # 1. Persist student message in DB with monotonic sequence number
                 student_msg_dict = None
+                student_created_at = datetime.now(timezone.utc)
+                student_seq = 0
                 if mode != "practice":
                     try:
                         with db_manager.get_session() as session:
+                            student_seq = _next_chat_seq(session, student_id)
                             msg_student = TutorChatMessage(
                                 student_id=student_id,
+                                seq=student_seq,
                                 sender="student",
                                 text=user_question,
                                 mode=mode,
+                                created_at=student_created_at,
                             )
                             session.add(msg_student)
                             session.flush()
@@ -333,11 +358,22 @@ async def tutor_websocket(
                     except Exception as exc:
                         logger.warning("Error saving student message on WS: %s", exc)
 
+                # Immediately acknowledge student bubble with its canonical ID & sequence position
+                if student_msg_dict:
+                    await websocket.send_json({
+                        "type": "student_ack",
+                        "client_msg_id": client_msg_id,
+                        "id": student_msg_dict["id"],
+                        "seq": student_msg_dict["seq"],
+                        "timestamp": student_msg_dict["timestamp"],
+                    })
+
                 # 2. Send status notification
                 await websocket.send_json({
                     "type": "status",
                     "status": "processing",
-                    "message": "Retrieving syllabus citations and synthesizing grounded answer...",
+                    "client_msg_id": client_msg_id,
+                    "message": "Consulting your course materials and preparing an answer...",
                 })
 
                 # 3. Execute RAG service asynchronously via threadpool
@@ -387,18 +423,25 @@ async def tutor_websocket(
                     for c in (result.sources or [])
                 ]
 
-                # 4. Persist tutor response in DB (practice drills stay out of tutor chat)
+                # 4. Persist tutor response in DB with strictly greater sequence & timestamp
                 tutor_msg_dict = None
                 if mode != "practice":
                     try:
                         with db_manager.get_session() as session:
+                            tutor_seq = max(student_seq + 1, _next_chat_seq(session, student_id))
+                            tutor_created_at = max(
+                                datetime.now(timezone.utc),
+                                student_created_at + timedelta(seconds=1),
+                            )
                             msg_tutor = TutorChatMessage(
                                 student_id=student_id,
+                                seq=tutor_seq,
                                 sender="tutor",
                                 text=result.answer,
                                 mode=mode,
                                 grounded=result.is_grounded,
                                 citations=json.dumps(citations_list),
+                                created_at=tutor_created_at,
                             )
                             session.add(msg_tutor)
                             session.flush()
@@ -406,10 +449,13 @@ async def tutor_websocket(
                     except Exception as exc:
                         logger.warning("Error saving tutor response on WS: %s", exc)
 
-                # 5. Send complete response to client
+                # 5. Send complete response anchored to exact sequence & student message
                 await websocket.send_json({
                     "type": "answer",
                     "id": tutor_msg_dict["id"] if tutor_msg_dict else f"tut_{id(result)}",
+                    "seq": tutor_msg_dict["seq"] if tutor_msg_dict else (student_seq + 1),
+                    "in_reply_to": student_msg_dict["id"] if student_msg_dict else client_msg_id,
+                    "client_msg_id": client_msg_id,
                     "text": result.answer,
                     "mode": mode,
                     "grounded": result.is_grounded,
