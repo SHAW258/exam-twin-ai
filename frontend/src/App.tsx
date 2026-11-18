@@ -50,7 +50,9 @@ export const App: React.FC = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<SplashScreen />} />
+          <Route path="/marketing" element={<MarketingLandingPage />} />
           <Route path="/about" element={<MarketingLandingPage />} />
+          <Route path="/overview" element={<MarketingLandingPage />} />
           <Route path="/login" element={<SignInPage />} />
           <Route path="/register" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

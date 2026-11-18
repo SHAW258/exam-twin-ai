@@ -231,7 +231,7 @@ export const SplashScreen: React.FC = () => {
 
   // ── Navigation ──────────────────────────────────────────────────────────────
   const handleEnterWorkspace = () => {
-    navigate(isAuthenticated ? '/dashboard' : '/login')
+    navigate('/marketing')
   }
 
   const handleExploreDocs = () => {
