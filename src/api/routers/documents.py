@@ -32,6 +32,18 @@ from src.learner_state.models import Student
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
 
+def clean_document_display_title(raw_name: str) -> str:
+    """Format stored document filenames into clean human-readable titles.
+
+    Strips internal doc_[hex]_ prefixes and URL percent-encoding (%20).
+    """
+    if not raw_name:
+        return "Untitled Document"
+    decoded = urllib.parse.unquote(urllib.parse.unquote(str(raw_name)))
+    cleaned = re.sub(r"^doc_[a-f0-9]+_", "", decoded).strip()
+    return cleaned or decoded
+
+
 @router.post(
     "/upload",
     response_model=DocumentUploadResponse,
@@ -83,7 +95,7 @@ async def upload_document(
         file_bytes = await request.body()
         filename_header = request.headers.get("x-filename")
         if filename_header:
-            filename = urllib.parse.unquote(filename_header)
+            filename = urllib.parse.unquote(urllib.parse.unquote(filename_header))
 
     if len(file_bytes) == 0:
         raise HTTPException(
@@ -107,21 +119,25 @@ async def upload_document(
                 detail="File does not have a valid PDF magic-byte header '%PDF-'. Upload rejected.",
             )
 
-    safe_title = (title.strip() if title else Path(filename).stem).replace("\x00", "")
-    filename = filename.replace("\x00", "")
+    decoded_filename = urllib.parse.unquote(urllib.parse.unquote(filename)).replace("\x00", "")
+    clean_upload_name = re.sub(r"^doc_[a-f0-9]+_", "", decoded_filename).strip()
+    if not clean_upload_name.lower().endswith(".pdf"):
+        clean_upload_name = f"{clean_upload_name}.pdf"
+
+    safe_title = clean_document_display_title(title.strip() if title else clean_upload_name)
     doc_id = f"doc_{uuid.uuid4().hex[:12]}"
 
     # Write to temporary file for PDFLoader parsing
     raw_dir = settings.raw_data_dir
     try:
         raw_dir.mkdir(parents=True, exist_ok=True)
-        temp_path = raw_dir / f"{doc_id}_{filename}"
+        temp_path = raw_dir / f"{doc_id}_{clean_upload_name}"
         temp_path.write_bytes(file_bytes)
     except OSError:
         import tempfile
         temp_dir = Path(tempfile.gettempdir()) / "codeknot_uploads"
         temp_dir.mkdir(parents=True, exist_ok=True)
-        temp_path = temp_dir / f"{doc_id}_{filename}"
+        temp_path = temp_dir / f"{doc_id}_{clean_upload_name}"
         temp_path.write_bytes(file_bytes)
 
     try:
@@ -131,11 +147,12 @@ async def upload_document(
             owner_user_id=current_student.external_student_id,
             document_id=doc_id,
             access_level=access_level if access_level in ["PRIVATE", "COURSE_SHARED"] else "PRIVATE",
+            original_filename=clean_upload_name,
         )
 
         return DocumentUploadResponse(
             document_id=doc_id,
-            filename=filename,
+            filename=clean_upload_name,
             pages_count=result.get("page_count", result.get("pages_count", 0)),
             chunks_count=result.get("chunk_count", result.get("chunks_count", 0)),
             status="SUCCESS",
@@ -179,16 +196,11 @@ def list_documents(
                 Document.owner_user_id == current_student.external_student_id
             ).order_by(Document.created_at.desc())
 
-        def _clean_title(raw_name: str) -> str:
-            decoded = urllib.parse.unquote(raw_name or "Untitled Document")
-            cleaned = re.sub(r"^doc_[a-f0-9]+_", "", decoded)
-            return cleaned.strip() or decoded
-
         docs = session.execute(stmt).scalars().all()
         return [
             DocumentListItem(
                 id=d.id,
-                title=_clean_title(getattr(d, "original_filename", None) or getattr(d, "filename", "Untitled Document")),
+                title=clean_document_display_title(getattr(d, "original_filename", None) or getattr(d, "filename", "Untitled Document")),
                 access_level=d.access_level,
                 pages_count=len(d.pages) if d.pages else 0,
                 chunks_count=len(d.chunks) if d.chunks else 0,
@@ -225,8 +237,7 @@ def get_document_details(
             )
 
         raw_name = getattr(doc, "original_filename", None) or getattr(doc, "filename", "Untitled Document")
-        decoded = urllib.parse.unquote(raw_name)
-        cleaned_title = re.sub(r"^doc_[a-f0-9]+_", "", decoded).strip() or decoded
+        cleaned_title = clean_document_display_title(raw_name)
 
         return DocumentDetailResponse(
             id=doc.id,

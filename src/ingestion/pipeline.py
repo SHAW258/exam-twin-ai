@@ -40,6 +40,7 @@ class DocumentIngestionPipeline:
         document_id: Optional[str] = None,
         access_level: str = AccessLevel.PRIVATE.value,
         source_type: str = "PDF",
+        original_filename: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Process a PDF file and persist its pages, chunks, and embeddings.
 
@@ -49,20 +50,27 @@ class DocumentIngestionPipeline:
             document_id: Optional explicit identifier.
             access_level: 'PRIVATE' or 'COURSE_SHARED'.
             source_type: Document origin classification.
+            original_filename: Clean original display filename provided by client.
 
         Returns:
             Dictionary with document details, page count, and chunk count.
         """
+        import re
+        import urllib.parse
         path = Path(file_path).resolve()
         doc_id = document_id or path.stem
+
+        raw_name = original_filename or path.name
+        decoded = urllib.parse.unquote(urllib.parse.unquote(str(raw_name)))
+        clean_name = re.sub(r"^doc_[a-f0-9]+_", "", decoded).strip() or decoded
 
         # Step 1: Initialize document record in database
         with self.db_manager.get_session() as session:
             doc = Document(
                 id=doc_id,
                 owner_user_id=owner_user_id,
-                filename=path.name,
-                original_filename=path.name,
+                filename=clean_name,
+                original_filename=clean_name,
                 content_type="application/pdf",
                 source_type=source_type,
                 access_level=access_level,

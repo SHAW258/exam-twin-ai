@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../api/client'
+import { cleanDocName } from '../../utils/document'
 import type { ErrorDNASummary, InterventionRecommendation, DocumentListItem, MeasurementResponse } from '../../types/api'
 
 export const DashboardPage: React.FC = () => {
@@ -140,7 +141,7 @@ export const DashboardPage: React.FC = () => {
                 {documents.slice(0, 4).map(doc => (
                   <div key={doc.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold text-slate-900 truncate max-w-[420px]">{doc.title}</p>
+                      <p className="text-xs font-semibold text-slate-900 truncate max-w-[420px]">{cleanDocName(doc.title)}</p>
                       <p className="text-[11px] text-slate-500">{doc.pages_count} pages • {doc.chunks_count > 0 ? 'Ready for AI' : 'Processing/check needed'}</p>
                     </div>
                     <Link to="/materials" className="text-xs font-semibold text-[#2563EB] hover:underline">Open</Link>

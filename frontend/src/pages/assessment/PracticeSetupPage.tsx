@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { api } from '../../api/client'
 import type { DocumentListItem } from '../../types/api'
+import { cleanDocName } from '../../utils/document'
 
 export const PracticeSetupPage: React.FC = () => {
   const navigate = useNavigate()
@@ -35,7 +36,7 @@ export const PracticeSetupPage: React.FC = () => {
   const isAutoSource = !selectedDocId
 
   const startDrill = (mode: 'error' | 'dns_print' | 'adapted_retrieval') => {
-    const docCleanTitle = selectedDoc?.title?.replace(/\.pdf$/i, '').replace(/^doc_[a-f0-9]+_/, '') || ''
+    const docCleanTitle = cleanDocName(selectedDoc?.title)
     const topic = autoTopic.trim() || docCleanTitle || (isAutoSource && mode === 'adapted_retrieval' && recommendedTopic ? recommendedTopic : 'Course Material')
 
     setActiveMode(mode)
@@ -80,7 +81,7 @@ export const PracticeSetupPage: React.FC = () => {
           >
             <option value="">Auto — my PDFs first, then shared course data</option>
             {documents.map((doc) => (
-              <option key={doc.id} value={doc.id}>{doc.title}</option>
+              <option key={doc.id} value={doc.id}>{cleanDocName(doc.title)}</option>
             ))}
           </select>
           {documents.length === 0 && (

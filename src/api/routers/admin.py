@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from src.api.auth import get_current_admin
+from src.api.routers.documents import clean_document_display_title
 from src.database.connection import DatabaseManager, get_db_manager
 from src.database.models import (
     AIPracticeRecord,
@@ -159,7 +160,7 @@ def get_admin_overview(
             pdfs.append(
                 {
                     "id": doc.id,
-                    "title": doc.original_filename or doc.filename or "Untitled PDF",
+                    "title": clean_document_display_title(doc.original_filename or doc.filename or "Untitled PDF"),
                     "filename": doc.filename,
                     "owner_user_id": doc.owner_user_id,
                     "owner_email": owner.email if owner else None,
@@ -370,7 +371,7 @@ def get_admin_pdf_detail(
 
         return {
             "id": doc.id,
-            "title": doc.original_filename or doc.filename or "Untitled PDF",
+            "title": clean_document_display_title(doc.original_filename or doc.filename or "Untitled PDF"),
             "filename": doc.filename,
             "owner_user_id": doc.owner_user_id,
             "owner_email": owner.email if owner else None,

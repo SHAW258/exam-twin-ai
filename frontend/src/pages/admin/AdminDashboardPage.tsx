@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { api } from '../../api/client'
+import { cleanDocName } from '../../utils/document'
 import { LoadingSpinner } from '../../components/ui/LoadingAndEmpty'
 import type {
   AdminOverviewResponse,
@@ -801,8 +802,8 @@ export const AdminDashboardPage: React.FC = () => {
                                 <FileText className="w-4 h-4" />
                               </div>
                               <div className="min-w-0">
-                                <p className="font-semibold text-slate-900 truncate max-w-xs" title={pdf.title}>
-                                  {pdf.title}
+                                <p className="font-semibold text-slate-900 truncate max-w-xs" title={cleanDocName(pdf.title)}>
+                                  {cleanDocName(pdf.title)}
                                 </p>
                                 <p className="text-[10px] font-mono text-slate-400">{pdf.id}</p>
                               </div>
@@ -1079,7 +1080,7 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
               <div className="min-w-0">
                 <h3 className="text-base font-bold text-slate-900 truncate">
-                  {inspectingPdf ? inspectingPdf.title : 'Loading PDF Details...'}
+                  {inspectingPdf ? cleanDocName(inspectingPdf.title) : 'Loading PDF Details...'}
                 </h3>
                 {inspectingPdf && (
                   <p className="text-xs text-slate-500 mt-0.5">

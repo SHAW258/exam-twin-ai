@@ -561,16 +561,21 @@ class RAGService:
                 f'{{"questions":[{{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct_option_index":0,"explanation":"Clear explanation of why this answer is correct."}}],"insufficient":false,"message":""}}'
             )
             try:
-                practice_text = self._clean_json_text(self.llm_service.generate(general_practice_prompt))
-            except Exception:
-                safe_topic = topic.strip().replace('"', "'")
-                practice_text = (
-                    f'{{"questions":[{{"question":"Which strategy is most effective when mastering {safe_topic} for exams?",'
-                    f'"options":["A) Understanding core principles, edge cases, and practical applications",'
-                    f'"B) Memorizing isolated terms without understanding context",'
-                    f'"C) Skipping foundational definitions","D) Avoiding practice problems"],'
-                    f'"correct_option_index":0,"explanation":"Deep understanding of core principles and active problem-solving leads to strong exam performance."}}],'
-                    f'"insufficient":false,"message":""}}'
+                raw_general = self.llm_service.generate(general_practice_prompt)
+                practice_text = self._clean_json_text(raw_general)
+                parsed = json.loads(practice_text)
+                if not isinstance(parsed, dict) or not parsed.get("questions"):
+                    raise ValueError("General LLM returned empty questions.")
+            except Exception as exc:
+                logger.warning("General LLM practice generation failed (%s). Using offline generator.", exc)
+                from src.rag.offline_generator import OfflineQuestionGenerator
+                practice_text = OfflineQuestionGenerator.generate_questions(
+                    chunks=[],
+                    topic=topic,
+                    question_count=target_count,
+                    seed=seed,
+                    query_instruction=query_instruction,
+                    include_provenance=False,
                 )
             # No PDF anywhere: still interactive, but marked so the caller can log AI practice.
             return RAGResponse(
@@ -597,7 +602,26 @@ class RAGService:
             query_instruction=query_instruction,
             seed=seed,
         )
-        practice_text = self._clean_json_text(self.llm_service.generate(prompt))
+        try:
+            raw_llm = self.llm_service.generate(prompt)
+            practice_text = self._clean_json_text(raw_llm)
+            parsed = json.loads(practice_text)
+            if not isinstance(parsed, dict) or not parsed.get("questions"):
+                raise ValueError("LLM returned malformed or empty questions list.")
+        except Exception as exc:
+            logger.warning(
+                "Gemini/LLM practice question generation failed or quota reached (%s). Engaging autonomous offline question synthesizer.",
+                exc,
+            )
+            from src.rag.offline_generator import OfflineQuestionGenerator
+            practice_text = OfflineQuestionGenerator.generate_questions(
+                chunks=active_chunks,
+                topic=topic,
+                question_count=target_count,
+                seed=seed,
+                query_instruction=query_instruction,
+                include_provenance=not anonymous,
+            )
         if anonymous:
             practice_text = self._strip_source_fields_from_json(practice_text)
             practice_text = self._scrub_source_references(practice_text, active_chunks)

@@ -8,6 +8,7 @@ import { CitationBadge } from '../../components/ui/Badge'
 import { api } from '../../api/client'
 import type { TutorSourceKind } from '../../types/api'
 import { recordQuizAttempt } from '../../utils/assessmentFlow'
+import { cleanDocName } from '../../utils/document'
 
 type MCQ = {
   question: string
@@ -63,7 +64,7 @@ export const QuizPage: React.FC = () => {
     timedMode?: boolean
   }
 
-  const topic = state.topic || 'Course Material'
+  const topic = cleanDocName(state.topic || 'Course Material')
   const questionCount = Math.min(25, Math.max(1, state.questionCount || 5))
   const documentIds = state.documentIds || (state.documentId ? [state.documentId] : undefined)
 

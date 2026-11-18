@@ -102,6 +102,57 @@ class MockLLMService(BaseLLMService):
         if self.response_generator:
             return self.response_generator(prompt)
 
+        # If prompt is requesting practice questions in JSON format, autonomously synthesize from chunks
+        if '"questions":' in prompt or "exam practice question" in prompt.lower() or "practice questions" in prompt.lower():
+            import re
+            from src.rag.retriever import RetrievedContextChunk
+            from src.rag.offline_generator import OfflineQuestionGenerator
+
+            extracted_chunks: List[RetrievedContextChunk] = []
+            chunk_blocks = re.findall(
+                r"---\s*(?:SOURCE|REFERENCE)\s*(\d+)\s*---\s*\n(?:Document:\s*([^\n]+)\n)?(?:Page:\s*(\d+)\n)?(?:Similarity Score:\s*([^\n]+)\n)?Content:\s*\n([\s\S]+?)(?=(?:---\s*(?:SOURCE|REFERENCE)|\Z|\[TOPIC FOCUS\]|\[PROBLEM STATEMENT\]))",
+                prompt,
+            )
+            for block in chunk_blocks:
+                p_num = int(block[2]) if block[2] else 1
+                doc_name = block[1].strip() if block[1] else "course_material.pdf"
+                score = float(block[3]) if block[3] else 0.8
+                content = block[4].strip()
+                if content:
+                    extracted_chunks.append(
+                        RetrievedContextChunk(
+                            document_id=doc_name.replace(".pdf", ""),
+                            page_number=p_num,
+                            chunk_index=len(extracted_chunks),
+                            text=content,
+                            similarity_score=score,
+                            source=doc_name,
+                        )
+                    )
+
+            topic_match = re.search(r"\[TOPIC FOCUS\]\s*\n([^\n]+)", prompt)
+            if not topic_match:
+                topic_match = re.search(r"on the topic:\s*['\"]([^'\"]+)['\"]", prompt)
+            topic = topic_match.group(1).strip() if topic_match else "Course Material"
+
+            seed_match = re.search(r"Variation Seed:\s*#?(\d+)", prompt)
+            if not seed_match:
+                seed_match = re.search(r"Session seed:\s*#?(\d+)", prompt)
+            seed_val = int(seed_match.group(1)) if seed_match else None
+
+            count_match = re.search(r"(?:generate exactly|Generate)\s*(\d+)", prompt, re.IGNORECASE)
+            q_count = int(count_match.group(1)) if count_match else 3
+
+            include_prov = "source_page" in prompt
+
+            return OfflineQuestionGenerator.generate_questions(
+                chunks=extracted_chunks,
+                topic=topic,
+                question_count=q_count,
+                seed=seed_val,
+                include_provenance=include_prov,
+            )
+
         # If prompt contains grounded source chunks, extract and summarize them
         if "--- SOURCE 1 ---" in prompt:
             import re

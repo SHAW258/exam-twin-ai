@@ -30,6 +30,7 @@ import {
   insertAnchoredAnswer,
 } from '../../components/tutor/chatState'
 import { api, getAuthToken, getWsBaseUrl } from '../../api/client'
+import { cleanDocName } from '../../utils/document'
 import type {
   TutorAskResponse,
   TutorMode,
@@ -740,7 +741,7 @@ export const AITutorWorkspacePage: React.FC = () => {
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-900 truncate">
-                  {selectedCitation.source_path.split('/').pop()}
+                  {cleanDocName(selectedCitation.source_path.split('/').pop())}
                 </span>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700">
                   Page {selectedCitation.page_number}

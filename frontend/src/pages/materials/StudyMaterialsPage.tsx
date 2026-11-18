@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { LoadingSpinner, EmptyState } from '../../components/ui/LoadingAndEmpty'
 import { api } from '../../api/client'
+import { cleanDocName } from '../../utils/document'
 import type { DocumentListItem } from '../../types/api'
 
 export const StudyMaterialsPage: React.FC = () => {
@@ -37,7 +38,7 @@ export const StudyMaterialsPage: React.FC = () => {
     setIsUploading(true); setUploadError(null); setUploadSuccess(null)
     try {
       const result = await api.documents.upload(file)
-      setUploadSuccess(`"${result.filename}" uploaded successfully.`)
+      setUploadSuccess(`"${cleanDocName(result.filename)}" uploaded successfully.`)
       await loadDocuments()
       setSelectedDocId(result.document_id)
     } catch (err: unknown) {
@@ -100,7 +101,7 @@ export const StudyMaterialsPage: React.FC = () => {
                 {documents.map((doc) => (
                   <button key={doc.id} type="button" onClick={() => setSelectedDocId(doc.id)}
                     className={`w-full text-left p-3.5 rounded-xl border transition-all space-y-1 ${selectedDocId === doc.id ? 'bg-blue-50/50 border-[#2563EB] shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
-                    <p className="text-xs font-bold text-slate-900 truncate">{doc.title}</p>
+                    <p className="text-xs font-bold text-slate-900 truncate">{cleanDocName(doc.title)}</p>
                     <p className="text-[11px] text-slate-500">{doc.pages_count} page{doc.pages_count === 1 ? '' : 's'} • {doc.chunks_count} indexed sections</p>
                     <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded ${doc.chunks_count > 0 ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                       {doc.chunks_count > 0 ? 'Ready for AI' : 'Needs review'}
@@ -117,7 +118,7 @@ export const StudyMaterialsPage: React.FC = () => {
               <Card className="p-6 md:p-8 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{activeDoc.title}</h2>
+                    <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{cleanDocName(activeDoc.title)}</h2>
                     <p className="text-xs text-slate-500">{activeDoc.pages_count} page{activeDoc.pages_count === 1 ? '' : 's'} processed</p>
                   </div>
                   <button onClick={() => handleDelete(activeDoc.id)} className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50" title="Remove PDF"><Trash2 className="w-4 h-4" /></button>
