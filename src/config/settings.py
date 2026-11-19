@@ -39,11 +39,19 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
-    # Database Configuration (MySQL / SQLAlchemy)
+    # Database Configuration (PostgreSQL / Supabase / SQLAlchemy)
     # -------------------------------------------------------------------------
     DATABASE_URL: str = Field(
         default="mysql+pymysql://exam_twin_user:exam_twin_pass@localhost:3306/exam_twin",
-        description="Connection URI for MySQL via PyMySQL driver using dedicated application user (or SQLite in tests).",
+        description="Connection URI for Supabase PostgreSQL (or MySQL / SQLite).",
+    )
+    SUPABASE_URL: Optional[str] = Field(
+        default=None,
+        description="Supabase project URL (e.g. https://sdwjzzkbqmiiegtloaes.supabase.co)."
+    )
+    SUPABASE_KEY: Optional[SecretStr] = Field(
+        default=None,
+        description="Supabase publishable anon or service role API key."
     )
     VECTOR_DIMENSION: int = Field(
         default=768,
