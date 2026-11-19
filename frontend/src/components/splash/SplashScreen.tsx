@@ -241,7 +241,8 @@ export const SplashScreen: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div
-      className="relative min-h-screen bg-[#070b16] text-slate-100 antialiased overflow-x-hidden"
+      data-splash="true"
+      className="splash-screen-container relative min-h-screen bg-[#070b16] text-slate-100 antialiased overflow-x-hidden"
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
       {/* Layer 0 – WebGL background canvas */}

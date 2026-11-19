@@ -1,4 +1,5 @@
 import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
+import { ThemeToggle } from '../../components/ui/ThemeToggle'
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -85,12 +86,15 @@ export const GlobalErrorPage: React.FC = () => {
           <CodeKnotIcon className="w-9 h-9" />
           <span className="font-bold text-xl text-slate-900 tracking-tight">CodeKnot</span>
         </Link>
-        <Link
-          to="/"
-          className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to overview
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle size="sm" />
+          <Link
+            to="/"
+            className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to overview
+          </Link>
+        </div>
       </div>
 
       <div className="max-w-4xl mx-auto w-full my-6 space-y-6">

@@ -9,14 +9,17 @@ import { StudyMaterialsPage } from '../pages/materials/StudyMaterialsPage'
 import { AssessmentHistoryPage } from '../pages/assessment/AssessmentHistoryPage'
 import { ErrorDNAPage } from '../pages/learning/ErrorDNAPage'
 import { AuthProvider } from '../context/AuthContext'
+import { ThemeProvider } from '../context/ThemeContext'
 import { api } from '../api/client'
 
 // Wrap components with required providers
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
-    <AuthProvider>
-      <BrowserRouter>{ui}</BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>{ui}</BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

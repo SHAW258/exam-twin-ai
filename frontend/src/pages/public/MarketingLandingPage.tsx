@@ -1,4 +1,5 @@
 import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
+import { ThemeToggle } from '../../components/ui/ThemeToggle'
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -46,6 +47,7 @@ export const MarketingLandingPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle size="sm" />
             {isAuthenticated ? (
               <Link
                 to="/dashboard"

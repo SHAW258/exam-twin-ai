@@ -1,9 +1,11 @@
 import { GlobalApiLoader } from './components/ui/GlobalApiLoader'
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { FloatingThemeToggle } from './components/ui/FloatingThemeToggle'
 
 // Splash Screen
 import { SplashScreen } from './components/splash/SplashScreen'
@@ -44,10 +46,12 @@ import { GlobalErrorPage } from './pages/error/GlobalErrorPage'
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <GlobalApiLoader />
-      <BrowserRouter>
-        <Routes>
+    <ThemeProvider>
+      <AuthProvider>
+        <GlobalApiLoader />
+        <BrowserRouter>
+          <FloatingThemeToggle />
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<SplashScreen />} />
           <Route path="/marketing" element={<MarketingLandingPage />} />
@@ -109,6 +113,7 @@ export const App: React.FC = () => {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+  </ThemeProvider>
   )
 }
 

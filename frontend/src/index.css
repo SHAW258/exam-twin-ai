@@ -11,6 +11,13 @@
     --ck-amber: #F59E0B;
   }
 
+  html.dark {
+    color-scheme: dark;
+    --ck-bg: #090d16;
+    --ck-navy: #0f172a;
+    --ck-slate: #1e293b;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--ck-bg);
@@ -19,6 +26,12 @@
     padding: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark body {
+    background-color: #090d16;
+    color: #f8fafc;
   }
 }
 
@@ -36,6 +49,16 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 /* Hide duplicate Microsoft Edge / Internet Explorer native password reveal and clear buttons */
@@ -59,4 +82,116 @@ input::-ms-clear {
 .ai-markdown .katex {
   font-size: 1.02em;
   color: #1E293B;
+}
+
+html.dark .ai-markdown .katex-display {
+  background: #111827;
+  border-color: #1f2937;
+}
+
+html.dark .ai-markdown .katex {
+  color: #f1f5f9;
+}
+
+/* ==========================================================================
+   GLOBAL DARK THEME ENGINE (Excluding Splash Screen)
+   ========================================================================== */
+
+/* 1. Surfaces & Backgrounds */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-\[\#F8FAFC\],
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50 {
+  background-color: #090d16 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white {
+  background-color: #0f172a !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/90,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.92) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50 {
+  background-color: rgba(37, 99, 235, 0.15) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+}
+
+/* 2. Text Colors */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-\[\#14213D\],
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-800 {
+  color: #f8fafc !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-700,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-400 {
+  color: #64748b !important;
+}
+
+/* 3. Borders */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-300 {
+  border-color: #1e293b !important;
+}
+
+/* 4. Inputs, Textareas, Selects */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *) input:not([type="checkbox"]):not([type="radio"]),
+html.dark :not([data-splash="true"]):not([data-splash="true"] *) textarea,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *) select {
+  background-color: #0b1120 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *) input::placeholder,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *) textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* 5. Hover States */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-100:hover,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-50:hover {
+  background-color: #1e293b !important;
+}
+
+/* 6. Shadows */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-xl,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-lg,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-md,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-sm,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-xs {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
 }

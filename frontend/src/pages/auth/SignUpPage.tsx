@@ -1,4 +1,5 @@
 import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
+import { ThemeToggle } from '../../components/ui/ThemeToggle'
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -148,9 +149,12 @@ export const SignUpPage: React.FC = () => {
               </span>
             </Link>
           </div>
-          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-            <span>Already have an account?</span>
-            <Link to="/login" className="font-bold text-[#2563EB] hover:underline">Sign In</Link>
+          <div className="flex items-center gap-3 text-xs font-medium text-slate-500">
+            <ThemeToggle size="sm" />
+            <div className="flex items-center gap-1.5">
+              <span>Already have an account?</span>
+              <Link to="/login" className="font-bold text-[#2563EB] hover:underline">Sign In</Link>
+            </div>
           </div>
         </div>
       </nav>

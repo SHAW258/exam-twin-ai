@@ -2,6 +2,7 @@ import React from 'react'
 import { Menu, Search, Bell } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { Link, useLocation } from 'react-router-dom'
+import { ThemeToggle } from '../ui/ThemeToggle'
 
 interface HeaderProps {
   onToggleSidebar: () => void
@@ -76,7 +77,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       </div>
 
       {/* Right Quick Actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        <ThemeToggle size="sm" />
 
         {/* Notifications */}
         <button

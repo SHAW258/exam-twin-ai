@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { CodeKnotIcon } from '../ui/CodeKnotIcon'
+import { ThemeToggle } from '../ui/ThemeToggle'
 
 interface SidebarProps {
   onNavigate?: () => void
@@ -116,6 +117,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Quick Theme Switcher in Sidebar */}
+      <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Theme</span>
+        <ThemeToggle size="sm" showLabel />
       </div>
 
       {/* User Footer Card */}

@@ -1,4 +1,5 @@
 import { CodeKnotIcon } from '../../components/ui/CodeKnotIcon'
+import { ThemeToggle } from '../../components/ui/ThemeToggle'
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -37,12 +38,15 @@ export const ForgotPasswordPage: React.FC = () => {
           </span>
         </Link>
 
-        <Link
-          to="/login"
-          className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle size="sm" />
+          <Link
+            to="/login"
+            className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+          </Link>
+        </div>
       </div>
 
       {/* Main Card Container */}
