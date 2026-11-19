@@ -7,7 +7,7 @@ course-grounded RAG retrieval.
 
 from datetime import datetime, timezone
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.adaptive_intervention.models import InterventionStrategy
 from src.adaptive_intervention.priority import TopicEvidence, TopicPriorityScorer
