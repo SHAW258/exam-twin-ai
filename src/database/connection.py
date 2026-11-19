@@ -37,6 +37,16 @@ class DatabaseManager:
             elif target_url.startswith("postgresql://") and not target_url.startswith("postgresql+"):
                 target_url = target_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
+            is_supabase = "supabase.co" in target_url or "supabase.com" in target_url
+            if is_supabase:
+                # Supabase requires SSL encryption for all connections
+                if "sslmode" not in target_url:
+                    connect_args.setdefault("sslmode", "require")
+                # Recycle pooled connections every 5 minutes to prevent stale idle connections
+                engine_kwargs.setdefault("pool_recycle", 300)
+            elif target_url.startswith("postgresql"):
+                engine_kwargs.setdefault("pool_recycle", 300)
+
             # For SQLite in-memory testing
             if target_url.startswith("sqlite"):
                 connect_args["check_same_thread"] = False
