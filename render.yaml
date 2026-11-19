@@ -1,21 +1,24 @@
 services:
   - type: web
-    name: exam-twin-api
+    name: codeknot-api
     runtime: python
     plan: free
     region: singapore
     branch: development
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_MODEL
-        value: gemini-3.5-flash-lite
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: APP_ENV
         value: production
       - key: CORS_ORIGINS
         value: "*"
-
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash-lite
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
