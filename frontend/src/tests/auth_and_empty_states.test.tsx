@@ -112,6 +112,7 @@ describe('PHASE 3 & 9: Real Empty States for Zero-Record State', () => {
 
   it('verifies AssessmentHistoryPage renders clean empty state when no tests exist', async () => {
     vi.spyOn(api.assessments, 'list').mockResolvedValue([])
+    vi.spyOn(api.measurements, 'list').mockResolvedValue([])
 
     renderWithProviders(<AssessmentHistoryPage />)
 

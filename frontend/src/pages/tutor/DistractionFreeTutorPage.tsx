@@ -320,23 +320,23 @@ export const DistractionFreeTutorPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#080D1A] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
       {/* Top Minimal Bar */}
-      <div className="h-16 px-6 border-b border-slate-200/90 flex items-center justify-between bg-white sticky top-0 z-30 shadow-2xs">
+      <div className="h-16 px-6 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-[#0A1124] sticky top-0 z-30 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#2563EB] text-white flex items-center justify-center shadow-xs">
             <Bot className="w-4 h-4" />
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-sm text-slate-900">Distraction-Free AI Tutor</span>
-            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+            <span className="font-bold text-sm text-slate-900 dark:text-white">Distraction-Free AI Tutor</span>
+            <span className="text-[10px] font-bold text-[#2563EB] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
               Focus Mode
             </span>
             <span
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
                 wsStatus === 'connected'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               }`}
             >
               <span
@@ -352,12 +352,12 @@ export const DistractionFreeTutorPage: React.FC = () => {
         {/* Action Controls */}
         <div className="flex items-center gap-3">
           {/* Mode Selector */}
-          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold">
+          <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-0.5 text-xs font-semibold">
             <button
               type="button"
               onClick={() => setMode('qa')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
-                mode === 'qa' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                mode === 'qa' ? 'bg-[#2563EB] text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Sparkles className="w-3 h-3" />
@@ -367,7 +367,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
               type="button"
               onClick={() => setMode('hint')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
-                mode === 'hint' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                mode === 'hint' ? 'bg-[#2563EB] text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <HelpCircle className="w-3 h-3" />
@@ -379,7 +379,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
           <button
             type="button"
             onClick={handleClearHistory}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:bg-rose-50 text-xs font-medium transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-medium transition-colors cursor-pointer"
             title="Clear all chat messages"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -405,9 +405,9 @@ export const DistractionFreeTutorPage: React.FC = () => {
             if (msg.sender === 'student') {
               return (
                 <div key={msg.clientMsgId || msg.id} className="flex justify-end w-full">
-                  <div className="max-w-[82%] sm:max-w-[75%] rounded-2xl rounded-br-sm bg-indigo-600 text-white px-5 py-3.5 text-sm sm:text-base shadow-xs break-words">
+                  <div className="max-w-[82%] sm:max-w-[75%] rounded-2xl rounded-br-sm bg-[#2563EB] text-white px-5 py-3.5 text-sm sm:text-base shadow-xs break-words">
                     <p className="whitespace-pre-wrap">{msg.text}</p>
-                    <span className="block text-[10px] text-indigo-200 text-right mt-1">
+                    <span className="block text-[10px] text-blue-100 text-right mt-1">
                       {msg.timestamp}
                     </span>
                   </div>
@@ -420,14 +420,14 @@ export const DistractionFreeTutorPage: React.FC = () => {
                 key={msg.id}
                 className="flex items-start gap-3.5"
               >
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2563EB] to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                   <Sparkles className="w-4 h-4" />
                 </div>
 
-                <div className="flex-1 min-w-0 rounded-2xl rounded-tl-sm bg-white border border-slate-200/90 shadow-xs overflow-hidden">
-                  <div className="flex items-center justify-between gap-2 px-6 py-3.5 bg-slate-50/60 border-b border-slate-100">
+                <div className="flex-1 min-w-0 rounded-2xl rounded-tl-sm bg-white dark:bg-[#0F172A] border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 px-6 py-3.5 bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-slate-900">CodeKnot AI</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">CodeKnot AI</span>
                       <CitationBadge
                         grounded={msg.grounded ?? false}
                         citationsCount={msg.citations?.length || 0}
@@ -435,15 +435,15 @@ export const DistractionFreeTutorPage: React.FC = () => {
                         mode={msg.mode}
                       />
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 shrink-0">
                       <span>{msg.timestamp}</span>
                     </div>
                   </div>
 
                   <div className="px-6 py-5">
                     {parsedDrill ? (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 space-y-1">
-                        <p className="font-bold text-slate-800">Older practice record hidden</p>
+                      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                        <p className="font-bold text-slate-800 dark:text-slate-100">Older practice record hidden</p>
                         <p>Quizzes are no longer shown in AI Tutor chat. Use the Practice Setup page to generate a quiz.</p>
                       </div>
                     ) : (
@@ -451,21 +451,21 @@ export const DistractionFreeTutorPage: React.FC = () => {
                     )}
 
                     {msg.citations && msg.citations.length > 0 && (
-                      <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
-                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                          <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-[#2563EB] dark:text-blue-400" />
                           Verified Source Textbooks:
                         </span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {msg.citations.map((c, i) => (
                             <div
                               key={i}
-                              className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1"
+                              className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs space-y-1"
                             >
-                              <div className="font-bold text-indigo-700">
+                              <div className="font-bold text-[#2563EB] dark:text-blue-400">
                                 Page {c.page_number} ({Math.round(c.similarity_score * 100)}% Match)
                               </div>
-                              <p className="text-slate-600 line-clamp-2 italic">"{c.snippet}"</p>
+                              <p className="text-slate-600 dark:text-slate-300 line-clamp-2 italic">"{c.snippet}"</p>
                             </div>
                           ))}
                         </div>
@@ -474,17 +474,17 @@ export const DistractionFreeTutorPage: React.FC = () => {
                   </div>
 
                   {!parsedDrill && (
-                    <div className="px-6 py-2 bg-slate-50/40 border-t border-slate-100 flex items-center justify-end">
+                    <div className="px-6 py-2 bg-slate-50/40 dark:bg-slate-900/40 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
                       <button
                         type="button"
                         onClick={() => handleCopyMessage(msg.id, msg.text)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                         title="Copy response"
                       >
                         {copiedMsgId === msg.id ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-600 font-semibold">Copied</span>
+                            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Copied</span>
                           </>
                         ) : (
                           <>
@@ -501,7 +501,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
           })}
 
           {isLoading && (
-            <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 shadow-xs">
+            <div className="p-8 text-center bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
               <LoadingSpinner
                 message={statusMessage || 'Consulting verified course material and synthesizing strict evidence...'}
               />
@@ -515,7 +515,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
         <div className="sticky bottom-4 z-20">
           <form
             onSubmit={handleAsk}
-            className="relative shadow-lg rounded-2xl bg-white border border-slate-300 overflow-hidden"
+            className="relative shadow-lg rounded-2xl bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-700 overflow-hidden"
           >
             <textarea
               rows={2}
@@ -527,9 +527,9 @@ export const DistractionFreeTutorPage: React.FC = () => {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleTextareaKeyDown}
-              className="w-full px-5 py-3.5 text-sm sm:text-base text-slate-900 focus:outline-none placeholder-slate-400 resize-none"
+              className="w-full px-5 py-3.5 text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-white dark:bg-[#0F172A] focus:outline-none placeholder-slate-400 dark:placeholder-slate-500 resize-none"
             />
-            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <div className="px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span>Sources: <strong>Course Library PDFs</strong></span>
@@ -538,6 +538,7 @@ export const DistractionFreeTutorPage: React.FC = () => {
                 type="submit"
                 variant="primary"
                 size="sm"
+                className="bg-[#2563EB] hover:bg-[#1d4ed8]"
                 isLoading={isLoading}
                 rightIcon={<Send className="w-3.5 h-3.5" />}
               >

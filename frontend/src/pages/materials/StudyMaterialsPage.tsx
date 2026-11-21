@@ -65,9 +65,9 @@ export const StudyMaterialsPage: React.FC = () => {
     <div className="space-y-6 font-sans">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-slate-500 mb-1">CodeKnot / Study Materials</div>
-          <h1 className="text-2xl font-extrabold text-[#14213D] tracking-tight">Study Materials</h1>
-          <p className="mt-1 text-xs text-slate-600 max-w-2xl leading-relaxed">Upload your PDF syllabus, lecture slides, or notes. CodeKnot uses them for grounded tutoring and PDF-based practice.</p>
+          <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">CodeKnot / Study Materials</div>
+          <h1 className="text-2xl font-extrabold text-[#14213D] dark:text-white tracking-tight">Study Materials</h1>
+          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed">Upload your PDF syllabus, lecture slides, or notes. CodeKnot uses them for grounded tutoring and PDF-based practice.</p>
         </div>
         <div>
           <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" id="pdf-upload-input" />
@@ -77,59 +77,59 @@ export const StudyMaterialsPage: React.FC = () => {
         </div>
       </div>
 
-      {uploadSuccess && <div className="flex items-center gap-2 p-3 rounded-xl bg-teal-50 border border-teal-200 text-teal-800 text-xs font-medium"><CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" /><span>{uploadSuccess}</span></div>}
-      {uploadError && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium"><AlertCircle className="w-4 h-4 text-rose-600 shrink-0" /><span>{uploadError}</span></div>}
+      {uploadSuccess && <div className="flex items-center gap-2 p-3 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-900/60 text-teal-800 dark:text-teal-200 text-xs font-medium"><CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" /><span>{uploadSuccess}</span></div>}
+      {uploadError && <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-200 text-xs font-medium"><AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" /><span>{uploadError}</span></div>}
 
       {documents.length === 0 ? (
-        <Card className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-[#2563EB] border border-blue-200 flex items-center justify-center mx-auto shadow-sm"><FileText className="w-8 h-8" /></div>
+        <Card className="p-12 text-center bg-white dark:bg-[#0A1124] border border-slate-200 dark:border-slate-800 rounded-2xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-[#2563EB] dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center mx-auto shadow-sm"><FileText className="w-8 h-8" /></div>
           <div className="space-y-1">
-            <h2 className="text-lg font-bold text-slate-900">No study materials uploaded yet</h2>
-            <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">Upload a PDF to start asking grounded questions and generating practice quizzes from your own material.</p>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">No study materials uploaded yet</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">Upload a PDF to start asking grounded questions and generating practice quizzes from your own material.</p>
           </div>
           <Button variant="primary" leftIcon={<Upload className="w-4 h-4" />} className="bg-[#2563EB] hover:bg-[#1d4ed8]" onClick={() => fileInputRef.current?.click()}>Upload Your First PDF</Button>
         </Card>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-4 space-y-4">
-            <Card className="p-5 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-3">
+            <Card className="p-5 bg-white dark:bg-[#0A1124] border border-slate-200 dark:border-slate-800 shadow-xs rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-slate-900">Uploaded PDFs</h2>
-                <button onClick={loadDocuments} className="text-slate-400 hover:text-slate-700 p-1 rounded" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white">Uploaded PDFs</h2>
+                <button onClick={loadDocuments} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1 rounded" title="Refresh"><RefreshCw className="w-3.5 h-3.5" /></button>
               </div>
               <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                 {documents.map((doc) => (
                   <button key={doc.id} type="button" onClick={() => setSelectedDocId(doc.id)}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all space-y-1 ${selectedDocId === doc.id ? 'bg-blue-50/50 border-[#2563EB] shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
-                    <p className="text-xs font-bold text-slate-900 truncate">{cleanDocName(doc.title)}</p>
-                    <p className="text-[11px] text-slate-500">{doc.pages_count} page{doc.pages_count === 1 ? '' : 's'} • {doc.chunks_count} indexed sections</p>
-                    <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded ${doc.chunks_count > 0 ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                    className={`w-full text-left p-3.5 rounded-xl border transition-all space-y-1 ${selectedDocId === doc.id ? 'bg-blue-50/50 dark:bg-blue-950/50 border-[#2563EB] dark:border-blue-500 shadow-sm' : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{cleanDocName(doc.title)}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{doc.pages_count} page{doc.pages_count === 1 ? '' : 's'} • {doc.chunks_count} indexed sections</p>
+                    <span className={`inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded ${doc.chunks_count > 0 ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800' : 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'}`}>
                       {doc.chunks_count > 0 ? 'Ready for AI' : 'Needs review'}
                     </span>
                   </button>
                 ))}
               </div>
-              <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">{documents.length} PDF(s) • {totalChunks} indexed sections available</div>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">{documents.length} PDF(s) • {totalChunks} indexed sections available</div>
             </Card>
           </div>
 
           <div className="lg:col-span-8 space-y-4">
             {activeDoc ? (
-              <Card className="p-6 md:p-8 bg-white border border-slate-200 shadow-xs rounded-2xl space-y-5">
+              <Card className="p-6 md:p-8 bg-white dark:bg-[#0A1124] border border-slate-200 dark:border-slate-800 shadow-xs rounded-2xl space-y-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{cleanDocName(activeDoc.title)}</h2>
-                    <p className="text-xs text-slate-500">{activeDoc.pages_count} page{activeDoc.pages_count === 1 ? '' : 's'} processed</p>
+                    <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">{cleanDocName(activeDoc.title)}</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{activeDoc.pages_count} page{activeDoc.pages_count === 1 ? '' : 's'} processed</p>
                   </div>
-                  <button onClick={() => handleDelete(activeDoc.id)} className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50" title="Remove PDF"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(activeDoc.id)} className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/50" title="Remove PDF"><Trash2 className="w-4 h-4" /></button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-center">
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1"><span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Pages</span><div className="text-2xl font-black text-slate-900">{activeDoc.pages_count}</div></div>
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1"><span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Status</span><div className="text-lg font-black text-slate-900">{activeDoc.chunks_count > 0 ? 'Ready' : 'Check upload'}</div><p className="text-[10px] text-slate-400">{activeDoc.chunks_count > 0 ? 'Available for tutor & practice' : 'Re-upload if needed'}</p></div>
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1"><span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pages</span><div className="text-2xl font-black text-slate-900 dark:text-white">{activeDoc.pages_count}</div></div>
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-1"><span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</span><div className="text-lg font-black text-slate-900 dark:text-white">{activeDoc.chunks_count > 0 ? 'Ready' : 'Check upload'}</div><p className="text-[10px] text-slate-400 dark:text-slate-500">{activeDoc.chunks_count > 0 ? 'Available for tutor & practice' : 'Re-upload if needed'}</p></div>
                 </div>
 
-                <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <Link to="/tutor"><Button variant="primary" size="sm" className="bg-[#2563EB] hover:bg-[#1d4ed8]" leftIcon={<Bot className="w-4 h-4" />}>Ask AI Tutor</Button></Link>
                   <Link to="/practice"><Button variant="outline" size="sm" leftIcon={<FileText className="w-4 h-4" />}>Generate Practice</Button></Link>
                 </div>

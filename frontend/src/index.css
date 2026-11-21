@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
 @layer base {
   :root {
     --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -94,97 +96,267 @@ html.dark .ai-markdown .katex {
 }
 
 /* ==========================================================================
-   GLOBAL DARK THEME ENGINE (Excluding Splash Screen)
+   GLOBAL THEME ENGINE & CONTRAST CALIBRATION (Excluding Splash Screen)
    ========================================================================== */
 
-/* 1. Surfaces & Backgrounds */
+/* --- LIGHT MODE OPTIMIZATIONS --- */
+/* Ensure maximum contrast, rich legibility, and no washed out text in Light Mode */
+html:not(.dark) {
+  color-scheme: light;
+}
+
+html:not(.dark) body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+html:not(.dark) :not([data-splash="true"]):not([data-splash="true"] *).text-slate-900,
+html:not(.dark) :not([data-splash="true"]):not([data-splash="true"] *).text-\[\#14213D\] {
+  color: #0F172A;
+}
+
+html:not(.dark) :not([data-splash="true"]):not([data-splash="true"] *).text-slate-800 {
+  color: #1E293B;
+}
+
+html:not(.dark) :not([data-splash="true"]):not([data-splash="true"] *).text-slate-700 {
+  color: #334155;
+}
+
+html:not(.dark) :not([data-splash="true"]):not([data-splash="true"] *).text-slate-600 {
+  color: #475569;
+}
+
+html:not(.dark) :not([data-splash="true"]):not([data-splash="true"] *).text-slate-500 {
+  color: #64748B;
+}
+
+/* --- DARK / NIGHT MODE STYLES & ACCENTS --- */
+
+/* 1. Surfaces, Cards & Backgrounds */
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-\[\#F8FAFC\],
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50 {
-  background-color: #090d16 !important;
+  background-color: #080D1A !important;
 }
 
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white {
-  background-color: #0f172a !important;
+  background-color: #0F172A !important;
 }
 
+/* Translucent whites & slates (wells, inner cards, chat strips) */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/95,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/90,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/80,
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/95 {
-  background-color: rgba(15, 23, 42, 0.92) !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-white\/50 {
+  background-color: rgba(15, 23, 42, 0.90) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50\/90,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50\/50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-50\/40 {
+  background-color: rgba(22, 33, 61, 0.75) !important;
 }
 
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100 {
-  background-color: #1e293b !important;
+  background-color: #1E293B !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100\/90,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-100\/50 {
+  background-color: rgba(30, 41, 59, 0.75) !important;
 }
 
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-slate-200 {
   background-color: #334155 !important;
 }
 
+/* Tinted chip & badge backgrounds */
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50,
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50 {
-  background-color: rgba(37, 99, 235, 0.15) !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50\/50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50\/40,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-indigo-50\/30,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50\/50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-blue-50\/40 {
+  background-color: rgba(37, 99, 235, 0.18) !important;
 }
 
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50 {
-  background-color: rgba(16, 185, 129, 0.15) !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-teal-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-teal-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-teal-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-teal-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-teal-50\/50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-teal-50\/40,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-emerald-50\/50 {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50\/90,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50\/50 {
+  background-color: rgba(245, 158, 11, 0.18) !important;
 }
 
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50\/70,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50\/60,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50\/50,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-rose-50\/40,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-red-50 {
-  background-color: rgba(239, 68, 68, 0.15) !important;
+  background-color: rgba(239, 68, 68, 0.18) !important;
 }
 
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).bg-amber-50 {
-  background-color: rgba(245, 158, 11, 0.15) !important;
+/* Gradients in dark mode */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).from-slate-50\/50.to-white {
+  background: linear-gradient(to bottom, #090D18, #0F172A) !important;
 }
 
-/* 2. Text Colors */
+/* 2. Text Colors & Glowing Accents */
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-950,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-\[\#14213D\],
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-800 {
-  color: #f8fafc !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-gray-900 {
+  color: #F8FAFC !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-800,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-gray-800 {
+  color: #E2E8F0 !important;
 }
 
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-700,
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-600 {
-  color: #cbd5e1 !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-gray-700 {
+  color: #CBD5E1 !important;
 }
 
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-500 {
-  color: #94a3b8 !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-600,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-gray-600 {
+  color: #94A3B8 !important;
 }
 
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-400 {
-  color: #64748b !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-500,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-gray-500 {
+  color: #94A3B8 !important;
 }
 
-/* 3. Borders */
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200,
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-slate-400,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-gray-400 {
+  color: #64748B !important;
+}
+
+/* High-saturation dark colored text calibrated to high-visibility glowing pastels */
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-indigo-950,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-indigo-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-indigo-800 {
+  color: #A5B4FC !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-blue-950,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-blue-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-blue-800 {
+  color: #93C5FD !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-teal-950,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-teal-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-teal-800 {
+  color: #5EEAD4 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-emerald-950,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-emerald-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-emerald-800 {
+  color: #6EE7B7 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-amber-950,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-amber-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-amber-800 {
+  color: #FDE047 !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-rose-950,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-rose-900,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).text-rose-800 {
+  color: #FDA4AF !important;
+}
+
+/* 3. Borders & Dividers */
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200\/90,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200\/80,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-200\/70,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-slate-300 {
-  border-color: #1e293b !important;
+  border-color: #1E293B !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-indigo-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-indigo-200,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-blue-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-blue-200 {
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-teal-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-teal-200,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-emerald-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-emerald-200 {
+  border-color: rgba(20, 184, 166, 0.35) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-amber-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-rose-100,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).border-rose-200 {
+  border-color: rgba(239, 68, 68, 0.35) !important;
 }
 
 /* 4. Inputs, Textareas, Selects */
 html.dark :not([data-splash="true"]):not([data-splash="true"] *) input:not([type="checkbox"]):not([type="radio"]),
 html.dark :not([data-splash="true"]):not([data-splash="true"] *) textarea,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *) select {
-  background-color: #0b1120 !important;
-  color: #f8fafc !important;
+  background-color: #0B1120 !important;
+  color: #F8FAFC !important;
   border-color: #334155 !important;
 }
 
 html.dark :not([data-splash="true"]):not([data-splash="true"] *) input::placeholder,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *) textarea::placeholder {
-  color: #64748b !important;
+  color: #64748B !important;
 }
 
 /* 5. Hover States */
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-100:hover,
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-50:hover {
-  background-color: #1e293b !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-50:hover,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-50\/70:hover,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).hover\:bg-slate-50\/50:hover {
+  background-color: #1E293B !important;
 }
 
 /* 6. Shadows */
@@ -192,6 +364,7 @@ html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-xl,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-lg,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-md,
 html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-sm,
-html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-xs {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-xs,
+html.dark :not([data-splash="true"]):not([data-splash="true"] *).shadow-2xs {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.45) !important;
 }
